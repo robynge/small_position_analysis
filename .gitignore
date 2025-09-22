@@ -27,14 +27,14 @@ desktop.ini
 ~$*.xls
 
 # Data files (keep these local, they're too large for GitHub)
-*.xlsx
-*.xls
-*.csv
+# *.xlsx
+# *.xls
+# *.csv
 
 # Analysis outputs (optional - you may want to keep some sample outputs)
 # Uncomment the line below if you don't want to track analysis results
-analysis_results/
-output/
+# analysis_results/
+# output/
 
 # Residual analysis folders (these are generated outputs)
 residual_analysis/
