@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Excel temporary files
+~$*.xlsx
+~$*.xls
+
+# Data files (keep these local, they're too large for GitHub)
+*.xlsx
+*.xls
+*.csv
+
+# Analysis outputs (optional - you may want to keep some sample outputs)
+# Uncomment the line below if you don't want to track analysis results
+analysis_results/
+output/
+
+# Residual analysis folders (these are generated outputs)
+residual_analysis/
+residual_code/
+residual_code_v2/
+
+# Personal configuration
+CLAUDE.md
+GITHUB_COMMIT_RULES.md
+*CLAUDE*.md
+# FILE_STRUCTURE.md  # Keep this for documentation
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Logs
+*.log
+
+# Virtual environment
+bin/
+lib/
+include/
+pip-selfcheck.json
