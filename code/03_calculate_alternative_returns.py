@@ -7,35 +7,20 @@ Using position-weighted return calculation
 import pandas as pd
 import numpy as np
 import os
-from config import OUTPUT_DIRS, CURRENT_RANGE
-from data_config import get_data_path
+from config import (OUTPUT_DIRS, CURRENT_RANGE, load_etf_data,
+                    calculate_yesterday_values, get_selected_etfs)
 
 def calculate_returns_comparison(etf_name):
     """
     Calculate and compare returns using position-weighted method:
     Return = Sum(Yesterday_Position * Today_Price) / Sum(Yesterday_Position * Yesterday_Price)
     """
-    
-    df = pd.read_excel(get_data_path(etf_name), sheet_name='Sheet1')
-    df['Date'] = pd.to_datetime(df['Date'])
-    
-    # Convert Weight from decimal to percentage (0.04 -> 4.0)
-    df['Weight'] = df['Weight'] * 100
-    
-    # Sort by date and stock
-    df = df.sort_values(['Bloomberg Name', 'Date'])
-    
-    # Calculate yesterday's position and price for each stock
-    df['Yesterday_Position'] = df.groupby('Bloomberg Name')['Position'].shift(1)
-    df['Yesterday_Price'] = df.groupby('Bloomberg Name')['Stock_Price'].shift(1)
-    
-    # Skip non-trading days (where price equals yesterday's price for ALL stocks)
-    # This happens on holidays when data is repeated from previous day
-    df['Price_Changed'] = df['Stock_Price'] != df['Yesterday_Price']
-    
-    # Calculate position value for return calculation
-    df['Yesterday_Value'] = df['Yesterday_Position'] * df['Yesterday_Price']
-    df['Today_Value'] = df['Yesterday_Position'] * df['Stock_Price']
+
+    # Load data using unified function
+    df = load_etf_data(etf_name)
+
+    # Calculate yesterday's values
+    df = calculate_yesterday_values(df)
     
     # Group by date to calculate daily returns
     daily_results = []
@@ -54,21 +39,26 @@ def calculate_returns_comparison(etf_name):
         if not date_df['Price_Changed'].any():
             continue  # Skip this date - it's a holiday with repeated data
         
-        # Calculate return for all positions
-        total_yesterday_value = date_df['Yesterday_Value'].sum()
-        total_today_value = date_df['Today_Value'].sum()
-        
         # Calculate return for positions excluding current weight range
         # Use yesterday's weight to determine which positions to include
+        # Exclude new positions (where Yesterday_Position = 0 or Yesterday_Value = 0)
+        date_df = date_df[date_df['Yesterday_Value'] > 0].copy()
+
+        if len(date_df) == 0:
+            continue
+
+        total_yesterday_value = date_df['Yesterday_Value'].sum()
+        total_today_value = date_df['Today_Value'].sum()
+
         date_df['Yesterday_Weight'] = (date_df['Yesterday_Value'] / total_yesterday_value) * 100
-        
+
         # Filter based on current weight range
         if CURRENT_RANGE:
             # Positions IN the current range (to be excluded from alternative return)
-            in_range = date_df[(date_df['Yesterday_Weight'] >= CURRENT_RANGE['min']) & 
+            in_range = date_df[(date_df['Yesterday_Weight'] >= CURRENT_RANGE['min']) &
                               (date_df['Yesterday_Weight'] < CURRENT_RANGE['max'])]
             # Positions OUTSIDE the current range (to be kept for alternative return)
-            out_of_range = date_df[(date_df['Yesterday_Weight'] < CURRENT_RANGE['min']) | 
+            out_of_range = date_df[(date_df['Yesterday_Weight'] < CURRENT_RANGE['min']) |
                                    (date_df['Yesterday_Weight'] >= CURRENT_RANGE['max'])]
         else:
             # Default fallback when no range specified
@@ -88,7 +78,7 @@ def calculate_returns_comparison(etf_name):
         return_actual = (total_today_value / total_yesterday_value - 1) if total_yesterday_value > 0 else 0
         return_exclude_small = (large_today_value / large_yesterday_value - 1) if large_yesterday_value > 0 else 0
         return_small_only = (small_today_value / small_yesterday_value - 1) if small_yesterday_value > 0 else 0
-        
+
         daily_results.append({
             'Date': date,
             'Return_Actual': return_actual,
@@ -114,18 +104,18 @@ def calculate_returns_comparison(etf_name):
 
 def save_alternative_returns_data():
     """Calculate and save alternative returns data to Excel"""
-    
-    from config import get_selected_etfs
+
     etfs = get_selected_etfs()
-    
+
     # Store all results
     all_results = {}
     all_weekly_results = {}
-    
+
     # Calculate for all ETFs
     for etf in etfs:
         daily_data = calculate_returns_comparison(etf)
         all_results[etf] = daily_data
+        print(f"  ✓ {etf}: Alternative returns")
         
         # Convert to weekly data
         daily_data['Week'] = pd.to_datetime(daily_data['Date']).dt.to_period('W')
@@ -199,14 +189,13 @@ def save_alternative_returns_data():
         
         summary_df = pd.DataFrame(summary_data)
         summary_df.to_excel(writer, sheet_name='Summary', index=False)
-    
-    
-    return all_results
+
+
+    return all_results, all_weekly_results, summary_df
 
 def run():
     """Main function to calculate and save alternative returns data"""
     result = save_alternative_returns_data()
-    print("✅ Alternative returns calculated")
     return result
 
 if __name__ == "__main__":

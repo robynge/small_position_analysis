@@ -11,7 +11,9 @@ import importlib
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 # Import configuration
-from config import create_directories, WEIGHT_RANGES, set_current_range, CURRENT_RANGE
+from config import (create_directories, WEIGHT_RANGES, set_current_range, CURRENT_RANGE,
+                    get_selected_etfs, set_selected_etf, get_available_etf_files)
+import config
 
 # Global flag for all ranges mode
 ALL_RANGES_MODE = False
@@ -42,10 +44,8 @@ def print_menu():
         current_label = '<1%'
 
     # Show current selected ETF
-    from data_config import DATA_FILES, SELECTED_ETF
-
-    if SELECTED_ETF and DATA_FILES:
-        data_info = f"Selected ETF: {SELECTED_ETF}"
+    if config.SELECTED_ETF and config.DATA_FILES:
+        data_info = f"Selected ETF: {config.SELECTED_ETF}"
     else:
         data_info = "No ETF selected - Please select an ETF first (option E)"
 
@@ -98,8 +98,6 @@ def select_weight_range():
 
 def select_etf():
     """Let user select which ETF to analyze"""
-    from data_config import get_available_etf_files, set_selected_etf, SELECTED_ETF
-
     print("\n" + "="*60)
     print("Select ETF for Analysis")
     print("="*60)
@@ -118,7 +116,7 @@ def select_etf():
     etf_list = []
     for i, etf in enumerate(['ARKF', 'ARKG', 'ARKK', 'ARKQ', 'ARKW', 'ARKX'], 1):
         if etf in available:
-            selected = '►' if etf == SELECTED_ETF else ' '
+            selected = '►' if etf == config.SELECTED_ETF else ' '
             etf_list.append(etf)
             print(f"  [{selected}] {i}. {etf}: {available[etf]['path'].name}")
         else:
@@ -158,8 +156,7 @@ def select_etf():
 def run_module(module_name, description):
     """Run a specific module"""
     weight_label = CURRENT_RANGE['label'] if CURRENT_RANGE else 'All'
-    print(f"\n▶ Running: {description} [{weight_label}]")
-    print("-"*40)
+    print(f"\n▶ {description} [{weight_label}]")
     try:
         # Clear module cache to ensure fresh import
         if module_name in sys.modules:
@@ -172,78 +169,82 @@ def run_module(module_name, description):
         elif hasattr(module, 'main'):
             module.main()
         else:
-            print(f"⚠️  Module {module_name} has no run() or main() function")
+            print(f"  ⚠️  Module {module_name} has no run() or main() function")
     except Exception as e:
-        print(f"❌ Error running {module_name}: {e}")
+        print(f"  ❌ Error: {e}")
         import traceback
         traceback.print_exc()
 
 def run_all_modules():
     """Run all analysis modules for current weight range"""
     weight_label = CURRENT_RANGE['label'] if CURRENT_RANGE else '<1%'
-    print(f"\n🚀 Running all analysis steps for {weight_label} positions...")
-    
+    print(f"\n{'='*60}")
+    print(f"Running All Steps [{weight_label}]")
+    print(f"{'='*60}")
+
     for key in sorted(modules.keys()):
         module_name, description = modules[key]
         run_module(module_name, description)
-    
-    print(f"\n✅ All steps completed for {weight_label}!")
+
+    print(f"\n{'='*60}")
+    print(f"✅ Completed")
+    print(f"{'='*60}")
 
 def batch_run_all_ranges():
     """Run all modules for all weight ranges"""
     print("\n" + "="*60)
-    print("BATCH PROCESSING ALL WEIGHT RANGES")
+    print("Batch Mode: All Weight Ranges")
     print("="*60)
-    
+
     for range_config in WEIGHT_RANGES:
-        print(f"\n\n{'='*60}")
-        print(f"Processing Range: {range_config['label']}")
+        print(f"\n{'='*60}")
+        print(f"Range: {range_config['label']}")
         print(f"{'='*60}")
-        
+
         # Set current range
         set_current_range(range_config)
         create_directories()
-        
+
         # Run all modules for this range
-        run_all_modules()
-    
-    print("\n" + "="*60)
-    print("✅ ALL WEIGHT RANGES PROCESSED SUCCESSFULLY!")
-    print("="*60)
-    
-    # Summary
-    print("\nGenerated folders:")
-    for range_config in WEIGHT_RANGES:
-        print(f"  - analysis_results_{range_config['folder']}/")
+        for key in sorted(modules.keys()):
+            module_name, description = modules[key]
+            run_module(module_name, description)
+
+    print(f"\n{'='*60}")
+    print("✅ All Ranges Completed")
+    print(f"{'='*60}")
 
 def run_specific_module_all_ranges(module_key):
     """Run a specific module for all weight ranges"""
     module_name, description = modules[module_key]
-    
-    print("\n" + "="*60)
-    print(f"Running '{description}' for ALL WEIGHT RANGES")
-    print("="*60)
-    
+
+    print(f"\n{'='*60}")
+    print(f"{description} - All Ranges")
+    print(f"{'='*60}")
+
     for range_config in WEIGHT_RANGES:
-        print(f"\n{'='*40}")
-        print(f"Range: {range_config['label']}")
-        print(f"{'='*40}")
-        
+        print(f"\n▶ Range: {range_config['label']}")
+
         # Set current range
         set_current_range(range_config)
         create_directories()
-        
+
         # Run the specific module
-        run_module(module_name, description)
-    
-    print("\n" + "="*60)
-    print(f"✅ Module '{description}' completed for all ranges!")
-    print("="*60)
+        try:
+            module = importlib.import_module(module_name)
+            if hasattr(module, 'run'):
+                module.run()
+            elif hasattr(module, 'main'):
+                module.main()
+        except Exception as e:
+            print(f"  ❌ Error: {e}")
+
+    print(f"\n{'='*60}")
+    print(f"✅ Completed")
+    print(f"{'='*60}")
 
 def main():
     """Main menu system"""
-    from data_config import SELECTED_ETF
-
     # Set default to first weight range initially
     if not CURRENT_RANGE:
         set_current_range(WEIGHT_RANGES[0])  # Default to first range
@@ -258,8 +259,7 @@ def main():
             
         elif choice == 'A':
             # Check if ETF is selected
-            from data_config import SELECTED_ETF
-            if not SELECTED_ETF:
+            if not config.SELECTED_ETF:
                 print("❌ Please select an ETF first (option E)")
                 continue
             # Run all steps for current range
@@ -267,13 +267,12 @@ def main():
 
         elif choice == 'B':
             # Check if ETF is selected
-            from data_config import SELECTED_ETF
-            if not SELECTED_ETF:
+            if not config.SELECTED_ETF:
                 print("❌ Please select an ETF first (option E)")
                 continue
             # Batch run for all ranges
             batch_run_all_ranges()
-            
+
         elif choice == 'R':
             # Select weight range
             result = select_weight_range()
@@ -285,15 +284,14 @@ def main():
             elif result and result != False:
                 globals()['ALL_RANGES_MODE'] = False  # Clear all ranges mode
                 print(f"✅ Weight range set to: {result['label']}")
-        
+
         elif choice == 'E':
             # Select ETF for analysis
             select_etf()
                 
         elif choice in modules:
             # Check if ETF is selected
-            from data_config import SELECTED_ETF
-            if not SELECTED_ETF:
+            if not config.SELECTED_ETF:
                 print("❌ Please select an ETF first (option E)")
                 continue
             # Check if we're in all ranges mode

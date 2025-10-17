@@ -21,27 +21,23 @@ from config import OUTPUT_DIRS
 
 def plot_market_value_charts():
     """Create market value charts from saved Excel data"""
-    
+
     # Load data
     folder_suffix = CURRENT_RANGE['folder'] if CURRENT_RANGE else 'under_1pct'
     input_file = f"{OUTPUT_DIRS['market_value']}/{folder_suffix}_Market_Value_Data.xlsx"
-    
+
     if not os.path.exists(input_file):
-        print(f"❌ Market value data file not found: {input_file}")
-        print("   Please run step 2.2 first to calculate market value data")
-        return
-    
+        raise FileNotFoundError(f"Market value data file not found: {input_file}\nPlease run step 2.2 first to calculate market value data.")
+
     from config import get_selected_etfs
     etfs = get_selected_etfs()
     colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd']
-    
-    # Read data for each ETF
+
+    # Process data for each ETF
     for i, etf in enumerate(etfs):
-        
         # Read ETF sheet
         weekly_data = pd.read_excel(input_file, sheet_name=etf)
         weekly_data['Date'] = pd.to_datetime(weekly_data['Date'])
-        
         # Rename columns for compatibility
         weekly_data.columns = ['Date', 'Small_MV_Total', 'Total_MV', 'Small_MV_Pct']
         
@@ -93,17 +89,16 @@ def plot_market_value_charts():
         output_file = f"{OUTPUT_DIRS['market_value']}/{etf}_Market_Value_Chart.png"
         plt.savefig(output_file, dpi=300, bbox_inches='tight')
         plt.close()
-        
-        # Create stacked market value percentage chart
-        create_stacked_mv_percentage_chart(etf, input_file)
-    
-    print("✅ Market value charts created")
 
-def create_stacked_mv_percentage_chart(etf, input_file):
+        # Create stacked market value percentage chart
+        range_data = pd.read_excel(input_file, sheet_name=f'{etf}_Ranges')
+        create_stacked_mv_percentage_chart(etf, range_data)
+        print(f"  ✓ {etf}: Market value charts")
+
+def create_stacked_mv_percentage_chart(etf, range_data):
     """Create a stacked area chart showing market value percentage distribution by weight range"""
-    
-    # Read range data
-    range_data = pd.read_excel(input_file, sheet_name=f'{etf}_Ranges')
+
+    # Ensure Date is datetime
     range_data['Date'] = pd.to_datetime(range_data['Date'])
     
     # Define colors (same as position distribution chart)

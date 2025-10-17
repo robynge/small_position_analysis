@@ -7,11 +7,10 @@ Using position-weighted calculation method from module 07
 """
 
 import pandas as pd
-import numpy as np
 import warnings
 warnings.filterwarnings('ignore')
-from config import OUTPUT_DIRS, CURRENT_RANGE
-from data_config import get_data_path
+from config import (OUTPUT_DIRS, CURRENT_RANGE, load_etf_data,
+                    calculate_yesterday_values, get_selected_etfs)
 import os
 
 def calculate_graduated_returns(etf_name):
@@ -22,17 +21,10 @@ def calculate_graduated_returns(etf_name):
     Using the same method as module 07:
     Return = Sum(Yesterday_Position * Today_Price) / Sum(Yesterday_Position * Yesterday_Price)
     """
-    
-    # Read data
-    df = pd.read_excel(get_data_path(etf_name), sheet_name='Sheet1')
-    df['Date'] = pd.to_datetime(df['Date'])
-    
-    # Convert Weight from decimal to percentage (0.04 -> 4.0)
-    df['Weight'] = df['Weight'] * 100
+
+    # Load data using unified function
+    df = load_etf_data(etf_name)
     df['Weight_Pct'] = df['Weight']  # For compatibility
-    
-    # Sort by stock and date
-    df = df.sort_values(['Bloomberg Name', 'Date'])
     
     # Identify graduated positions
     graduated_tickers = set()
@@ -50,28 +42,33 @@ def calculate_graduated_returns(etf_name):
                 graduated_tickers.add(ticker)
                 break
     
-    
-    # Calculate yesterday's position and price for each stock
-    df['Yesterday_Position'] = df.groupby('Bloomberg Name')['Position'].shift(1)
-    df['Yesterday_Price'] = df.groupby('Bloomberg Name')['Stock_Price'].shift(1)
-    
-    
-    # Calculate position value for return calculation
-    df['Yesterday_Value'] = df['Yesterday_Position'] * df['Yesterday_Price']
-    df['Today_Value'] = df['Yesterday_Position'] * df['Stock_Price']
+
+    # Calculate yesterday's values
+    df = calculate_yesterday_values(df)
     
     # Group by date to calculate daily returns
     daily_results = []
     
     for date in df['Date'].unique():
         date_df = df[df['Date'] == date].copy()
-        
+
         # Remove rows without yesterday data
         date_df = date_df.dropna(subset=['Yesterday_Value', 'Today_Value'])
-        
+
         if len(date_df) == 0:
             continue
-        
+
+        # Skip non-trading days (holidays) where no prices changed
+        if not date_df['Price_Changed'].any():
+            continue
+
+        # Exclude new positions (where Yesterday_Value = 0)
+        # New positions should not be compared with yesterday on their first day
+        date_df = date_df[date_df['Yesterday_Value'] > 0].copy()
+
+        if len(date_df) == 0:
+            continue
+
         # Calculate return for ALL positions in weight range
         # Use yesterday's weight to determine which positions to include
         total_yesterday_value_all = date_df['Yesterday_Value'].sum()
@@ -128,28 +125,30 @@ def calculate_graduated_returns(etf_name):
 
 def calculate_all_graduated_returns():
     """Calculate graduated returns for all ETFs"""
-    
-    from config import get_selected_etfs
+
     etfs = get_selected_etfs()
-    
+
     all_results = {}
     all_graduated_tickers = {}
-    
+
     # Calculate for all ETFs
     for etf in etfs:
         data, graduated = calculate_graduated_returns(etf)
         all_results[etf] = data
         all_graduated_tickers[etf] = graduated
-    
+        print(f"  ✓ {etf}: Graduation analysis")
+
     return all_results, all_graduated_tickers
 
 def save_graduation_data(all_results, all_graduated_tickers):
     """Save graduation analysis data to Excel"""
-    
+
     output_dir = OUTPUT_DIRS['graduation']
     os.makedirs(output_dir, exist_ok=True)
-    
-    output_file = f"{output_dir}/Graduation_Returns_Data.xlsx"
+
+    # Use consistent naming with weight range folder suffix
+    folder_suffix = CURRENT_RANGE['folder'] if CURRENT_RANGE else 'under_1pct'
+    output_file = f"{output_dir}/{folder_suffix}_Graduation_Returns_Data.xlsx"
     
     with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
         # Summary sheet
@@ -211,21 +210,20 @@ def save_graduation_data(all_results, all_graduated_tickers):
         
         graduated_df = pd.DataFrame(graduated_list)
         graduated_df.to_excel(writer, sheet_name='Graduated_Tickers', index=False)
-    
-    
+
+
+
     return summary_df
 
 def run():
     """Main function to calculate and save graduation analysis data"""
-    
+
     # Calculate graduated returns
     all_results, all_graduated_tickers = calculate_all_graduated_returns()
-    
+
     # Save data
-    summary = save_graduation_data(all_results, all_graduated_tickers)
-    
-    print("✅ Graduation analysis completed")
-    
+    save_graduation_data(all_results, all_graduated_tickers)
+
     return all_results, all_graduated_tickers
 
 if __name__ == "__main__":

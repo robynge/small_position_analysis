@@ -7,19 +7,13 @@ import numpy as np
 import os
 import warnings
 warnings.filterwarnings('ignore')
-from config import OUTPUT_DIRS, CURRENT_RANGE
-from data_config import get_data_path
+from config import OUTPUT_DIRS, CURRENT_RANGE, load_etf_data, get_selected_etfs
 
 def process_etf_data(fund_name):
     """Process a single ETF's data to get daily position counts by weight ranges"""
-    
-    
-    # Read the data using centralized path
-    df = pd.read_excel(get_data_path(fund_name), sheet_name='Sheet1')
-    df['Date'] = pd.to_datetime(df['Date'])
-    
-    # Convert Weight from decimal to percentage (0.04 -> 4.0)
-    df['Weight'] = df['Weight'] * 100
+
+    # Load data using unified function
+    df = load_etf_data(fund_name)
     
     # Group by Date to get daily counts for ALL weight ranges
     daily_data = []
@@ -101,21 +95,19 @@ def save_positions_data_to_excel(all_data):
 
 def run():
     """Main function to calculate and save position data"""
-    
-    from config import get_selected_etfs
+
     etfs = get_selected_etfs()
-    
+
     all_data = {}
-    
+
     # Process each ETF
     for etf in etfs:
         data = process_etf_data(etf)
         all_data[etf] = data
-    
+        print(f"  ✓ {etf}: Position counts")
+
     # Save data to Excel
     save_positions_data_to_excel(all_data)
-    
-    print("✅ Position data calculated")
 
 if __name__ == "__main__":
     run()

@@ -6,31 +6,20 @@ Shows the market value and percentage of AUM allocated to positions in weight ra
 import pandas as pd
 import numpy as np
 import os
-from config import CURRENT_RANGE, set_current_range, WEIGHT_RANGES, create_directories
-from data_config import get_data_path
-
-# Initialize configuration if not already set
-if CURRENT_RANGE is None:
-    set_current_range(WEIGHT_RANGES[0])  # Default to <1%
-    create_directories()
-
-# Import OUTPUT_DIRS after initialization
-from config import OUTPUT_DIRS
+from config import (CURRENT_RANGE, OUTPUT_DIRS, load_etf_data,
+                    filter_by_weight_range, get_selected_etfs)
 
 def calculate_weekly_market_value(etf_name):
     """Calculate the weekly aggregated market value of positions in weight range"""
-    
-    df = pd.read_excel(get_data_path(etf_name), sheet_name='Sheet1')
-    df['Date'] = pd.to_datetime(df['Date'])
-    
-    # Convert Weight from decimal to percentage (0.04 -> 4.0)
-    df['Weight'] = df['Weight'] * 100
+
+    # Load data using unified function
+    df = load_etf_data(etf_name)
     
     # Add week identifier
     df['Week'] = df['Date'].dt.to_period('W')
-    
-    # Separate positions in weight range
-    df_small = df[(df['Weight'] >= CURRENT_RANGE['min']) & (df['Weight'] < CURRENT_RANGE['max'])] if CURRENT_RANGE else df[df['Weight'] < 1].copy()
+
+    # Filter for positions in weight range
+    df_small = filter_by_weight_range(df)
     
     # Calculate weekly total for positions in weight range (sum across all days in the week)
     weekly_small = df_small.groupby('Week').agg({
@@ -60,12 +49,9 @@ def calculate_weekly_market_value(etf_name):
 
 def calculate_weekly_market_value_by_range(etf_name):
     """Calculate the weekly aggregated market value for all weight ranges"""
-    
-    df = pd.read_excel(get_data_path(etf_name), sheet_name='Sheet1')
-    df['Date'] = pd.to_datetime(df['Date'])
-    
-    # Convert Weight from decimal to percentage (0.04 -> 4.0)
-    df['Weight'] = df['Weight'] * 100
+
+    # Load data using unified function
+    df = load_etf_data(etf_name)
     
     # Add week identifier
     df['Week'] = df['Date'].dt.to_period('W')
@@ -112,21 +98,21 @@ def calculate_weekly_market_value_by_range(etf_name):
 
 def save_market_value_data():
     """Calculate and save market value data to Excel"""
-    
-    from config import get_selected_etfs
+
     etfs = get_selected_etfs()
-    
+
     all_data = {}
     all_range_data = {}
-    
+
     # Calculate for each ETF
     for etf in etfs:
         weekly_data = calculate_weekly_market_value(etf)
         all_data[etf] = weekly_data
-        
+
         # Also calculate market value by weight range
         range_data = calculate_weekly_market_value_by_range(etf)
         all_range_data[etf] = range_data
+        print(f"  ✓ {etf}: Market value")
     
     # Save data to Excel
     folder_suffix = CURRENT_RANGE['folder'] if CURRENT_RANGE else 'under_1pct'
@@ -160,14 +146,13 @@ def save_market_value_data():
         
         summary_df = pd.DataFrame(summary_data)
         summary_df.to_excel(writer, sheet_name='Summary', index=False)
-    
-    
+
+
     return all_data, all_range_data
 
 def run():
     """Main function to calculate and save market value data"""
     result = save_market_value_data()
-    print("✅ Market value data calculated")
     return result
 
 if __name__ == "__main__":

@@ -14,27 +14,25 @@ from config import OUTPUT_DIRS, CURRENT_RANGE
 
 def plot_graduation_charts():
     """Create graduation analysis charts from saved Excel data"""
-    
+
     # Load data
-    input_file = f"{OUTPUT_DIRS['graduation']}/Graduation_Returns_Data.xlsx"
-    
+    folder_suffix = CURRENT_RANGE['folder'] if CURRENT_RANGE else 'under_1pct'
+    input_file = f"{OUTPUT_DIRS['graduation']}/{folder_suffix}_Graduation_Returns_Data.xlsx"
+
     if not os.path.exists(input_file):
-        print(f"❌ Graduation analysis data file not found: {input_file}")
-        print("   Please run step 4 first to calculate graduation analysis data")
-        return
-    
+        raise FileNotFoundError(f"Graduation data file not found: {input_file}\nPlease run step 4 first to calculate graduation data.")
+
     from config import get_selected_etfs
     etfs = get_selected_etfs()
-    colors = {'ARKF': '#FF6B6B', 'ARKG': '#4ECDC4', 'ARKK': '#45B7D1', 
-              'ARKQ': '#96CEB4', 'ARKW': '#FECA57'}
-    
+    colors = {'ARKF': '#FF6B6B', 'ARKG': '#4ECDC4', 'ARKK': '#45B7D1',
+              'ARKQ': '#96CEB4', 'ARKW': '#FECA57', 'ARKX': '#9B59B6'}
+
     # Read summary data
     summary_df = pd.read_excel(input_file, sheet_name='Summary')
-    
-    # Create individual charts for each ETF
+
+    # Process data for each ETF
     for etf in etfs:
-        
-        # Read ETF weekly data
+        # Read ETF data (sheet name is just the ETF name, not ETF_Weekly)
         weekly_data = pd.read_excel(input_file, sheet_name=etf)
         weekly_data['Date'] = pd.to_datetime(weekly_data['Date'])
         
@@ -96,9 +94,7 @@ def plot_graduation_charts():
         output_file = f"{OUTPUT_DIRS['graduation']}/{etf}_Graduated_Analysis_Chart.png"
         plt.savefig(output_file, dpi=300, bbox_inches='tight')
         plt.close()
-        
-    
-    print("✅ Graduation charts created")
+        print(f"  ✓ {etf}: Graduation chart")
 
 def run():
     """Main function to create graduation analysis charts"""

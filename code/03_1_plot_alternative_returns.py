@@ -9,35 +9,31 @@ import matplotlib.pyplot as plt
 import os
 import warnings
 warnings.filterwarnings('ignore')
-from config import OUTPUT_DIRS, CURRENT_RANGE
+from config import OUTPUT_DIRS, CURRENT_RANGE, get_selected_etfs
 
 def plot_alternative_returns_charts():
     """Create alternative returns charts from saved Excel data"""
-    
+
     # Load data
     folder_suffix = CURRENT_RANGE['folder'] if CURRENT_RANGE else 'Alternative'
     input_file = f"{OUTPUT_DIRS['returns']}/{folder_suffix}_Returns_Data.xlsx"
-    
+
     if not os.path.exists(input_file):
-        print(f"❌ Alternative returns data file not found: {input_file}")
-        print("   Please run step 3 first to calculate alternative returns data")
-        return
-    
-    from config import get_selected_etfs
+        raise FileNotFoundError(f"Alternative returns data file not found: {input_file}\nPlease run step 3 first to calculate alternative returns data.")
+
     etfs = get_selected_etfs()
-    colors = {'ARKF': '#FF6B6B', 'ARKG': '#4ECDC4', 'ARKK': '#45B7D1', 
-              'ARKQ': '#96CEB4', 'ARKW': '#FECA57'}
-    
+    colors = {'ARKF': '#FF6B6B', 'ARKG': '#4ECDC4', 'ARKK': '#45B7D1',
+              'ARKQ': '#96CEB4', 'ARKW': '#FECA57', 'ARKX': '#9B59B6'}
+
     # Read summary data
     summary_df = pd.read_excel(input_file, sheet_name='Summary')
-    
-    # Create individual PNG for each ETF
+
+    # Process data for each ETF
     for etf in etfs:
-        
         # Read ETF data
         daily_data = pd.read_excel(input_file, sheet_name=f'{etf}_Daily')
         weekly_data = pd.read_excel(input_file, sheet_name=f'{etf}_Weekly')
-        
+
         daily_data['Date'] = pd.to_datetime(daily_data['Date'])
         weekly_data['Date'] = pd.to_datetime(weekly_data['Date'])
         
@@ -99,9 +95,7 @@ def plot_alternative_returns_charts():
         output_file = f"{OUTPUT_DIRS['returns']}/{etf}_Alternative_Returns_Chart.png"
         plt.savefig(output_file, dpi=300, bbox_inches='tight')
         plt.close()
-        
-    
-    print("✅ Alternative returns charts created")
+        print(f"  ✓ {etf}: Alternative returns chart")
 
 def run():
     """Main function to create alternative returns charts"""
