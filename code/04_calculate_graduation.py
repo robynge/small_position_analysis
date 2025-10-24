@@ -1,131 +1,135 @@
 """
-Analyze cumulative returns of graduated positions (from weight range to higher)
-Compare: 
-1. All positions in weight range cumulative return
-2. Graduated positions (those that moved from weight range to higher) cumulative return
-Using position-weighted calculation method from module 07
+Analyze graduated stocks: stocks that grew from <1% to >=1%
+Calculate daily returns for two periods:
+1. Before graduation (<1% period)
+2. After graduation (>=1% period)
 """
 
 import pandas as pd
+import numpy as np
 import warnings
 warnings.filterwarnings('ignore')
-from config import (OUTPUT_DIRS, CURRENT_RANGE, load_etf_data,
-                    calculate_yesterday_values, get_selected_etfs)
+from config import OUTPUT_DIRS, load_etf_data, get_selected_etfs
 import os
+
+def identify_graduated_stocks(df):
+    """
+    Identify stocks that graduated from <1% to >=1%
+
+    Excludes:
+    - Stocks that never reached >=1%
+    - Stocks that started with >=1% (unless they later dropped <1% then went back >=1%)
+
+    Returns:
+        dict: {ticker: graduation_date}
+    """
+    graduated_stocks = {}
+
+    for ticker, group in df.groupby('Bloomberg Name'):
+        group = group.sort_values('Date').reset_index(drop=True)
+
+        # Find the first valid <1% period (excluding initial >1% if exists)
+        started_small = False
+        small_period_start_idx = None
+
+        for idx in range(len(group)):
+            weight = group.iloc[idx]['Weight']
+            affiliation = group.iloc[idx]['affiliation_check']
+
+            # Skip if affiliated
+            if affiliation != 0:
+                continue
+
+            # Track when stock first enters <1% range
+            if weight < 1 and not started_small:
+                started_small = True
+                small_period_start_idx = idx
+
+            # Check for graduation: moved from <1% to >=1%
+            if started_small and weight >= 1:
+                graduation_date = group.iloc[idx]['Date']
+                graduated_stocks[ticker] = {
+                    'graduation_date': graduation_date,
+                    'small_start_idx': small_period_start_idx
+                }
+                break
+
+    return graduated_stocks
 
 def calculate_graduated_returns(etf_name):
     """
-    Calculate cumulative returns for:
-    1. All positions in weight range
-    2. Positions that graduated from weight range to higher
-    Using the same method as module 07:
-    Return = Sum(Yesterday_Position * Today_Price) / Sum(Yesterday_Position * Yesterday_Price)
+    Calculate daily returns for graduated stocks in two periods:
+    1. <1% period (before graduation)
+    2. >=1% period (after graduation)
     """
 
-    # Load data using unified function
+    # Load data
     df = load_etf_data(etf_name)
-    df['Weight_Pct'] = df['Weight']  # For compatibility
-    
-    # Identify graduated positions
-    # Only positions with affiliation_check == 0 can be considered small and thus graduate
-    graduated_tickers = set()
-    for ticker, group in df.groupby('Bloomberg Name'):
-        group = group.sort_values('Date')
-        # Check if this ticker ever graduated from weight range to higher
-        was_small = False
-        weight_threshold = CURRENT_RANGE['max'] if CURRENT_RANGE else 1.0
-        for idx in range(len(group)):
-            weight = group.iloc[idx]['Weight_Pct']
-            affiliation = group.iloc[idx]['affiliation_check']
-            if weight < weight_threshold and affiliation == 0:
-                was_small = True
-            elif was_small and weight >= weight_threshold:
-                # This ticker graduated
-                graduated_tickers.add(ticker)
-                break
-    
+    df = df.sort_values(['Bloomberg Name', 'Date']).reset_index(drop=True)
 
-    # Calculate yesterday's values
-    df = calculate_yesterday_values(df)
-    
-    # Group by date to calculate daily returns
-    daily_results = []
-    
-    for date in df['Date'].unique():
-        date_df = df[df['Date'] == date].copy()
+    # Calculate yesterday's values for return and P&L calculation
+    df['Yesterday_Price'] = df.groupby('Bloomberg Name')['Stock_Price'].shift(1)
+    df['Yesterday_Position'] = df.groupby('Bloomberg Name')['Position'].shift(1)
+    df['Yesterday_Weight'] = df.groupby('Bloomberg Name')['Weight'].shift(1)
 
-        # Remove rows without yesterday data
-        date_df = date_df.dropna(subset=['Yesterday_Value', 'Today_Value'])
+    # Calculate daily return
+    df['Daily_Return'] = (df['Stock_Price'] - df['Yesterday_Price']) / df['Yesterday_Price']
 
-        if len(date_df) == 0:
-            continue
+    # Calculate daily P&L
+    df['Daily_PnL'] = df['Yesterday_Position'] * (df['Stock_Price'] - df['Yesterday_Price'])
 
-        # Skip non-trading days (holidays) where no prices changed
-        if not date_df['Price_Changed'].any():
-            continue
+    # Identify graduated stocks
+    graduated_stocks = identify_graduated_stocks(df)
 
-        # Exclude new positions (where Yesterday_Value = 0)
-        # New positions should not be compared with yesterday on their first day
-        date_df = date_df[date_df['Yesterday_Value'] > 0].copy()
+    if len(graduated_stocks) == 0:
+        print(f"  ⚠️  {etf_name}: No graduated stocks found")
+        return pd.DataFrame(), graduated_stocks
 
-        if len(date_df) == 0:
-            continue
+    # Collect returns for each graduated stock
+    all_returns = []
 
-        # Calculate return for ALL positions in weight range
-        # Use yesterday's weight to determine which positions to include
-        total_yesterday_value_all = date_df['Yesterday_Value'].sum()
-        date_df['Yesterday_Weight'] = (date_df['Yesterday_Value'] / total_yesterday_value_all) * 100
-        
-        # Small positions are those in weight range yesterday
-        # Filter based on current weight range
-        # Exclude positions with affiliation_check == 1 from being considered small
-        if CURRENT_RANGE:
-            small_positions = date_df[(date_df['Yesterday_Weight'] >= CURRENT_RANGE['min']) &
-                                     (date_df['Yesterday_Weight'] < CURRENT_RANGE['max']) &
-                                     (date_df['affiliation_check'] == 0)]
-        else:
-            small_positions = date_df[(date_df['Yesterday_Weight'] < 1) & (date_df['affiliation_check'] == 0)]
-        
-        small_yesterday_value = small_positions['Yesterday_Value'].sum()
-        small_today_value = small_positions['Today_Value'].sum()
-        
-        # Calculate return for GRADUATED positions that are NOW above range
-        # These are graduated tickers that are currently in large position state (above range)
-        # Positions above the weight range
-        if CURRENT_RANGE:
-            large_positions = date_df[date_df['Yesterday_Weight'] >= CURRENT_RANGE['max']]
-        else:
-            large_positions = date_df[date_df['Yesterday_Weight'] >= 1]
-        graduated_large = large_positions[large_positions['Bloomberg Name'].isin(graduated_tickers)]
-        
-        grad_yesterday_value = graduated_large['Yesterday_Value'].sum()
-        grad_today_value = graduated_large['Today_Value'].sum()
-        
-        # Calculate returns
-        return_small = (small_today_value / small_yesterday_value - 1) if small_yesterday_value > 0 else 0
-        return_graduated = (grad_today_value / grad_yesterday_value - 1) if grad_yesterday_value > 0 else 0
-        
-        
-        daily_results.append({
-            'Date': date,
-            'Return_SmallPositions': return_small,
-            'Return_Graduated': return_graduated,
-            'Small_Yesterday_Value': small_yesterday_value,
-            'Small_Today_Value': small_today_value,
-            'Graduated_Yesterday_Value': grad_yesterday_value,
-            'Graduated_Today_Value': grad_today_value,
-            'Num_Small_Positions': len(small_positions),
-            'Num_Graduated_Large': len(graduated_large)
-        })
-    
-    comparison = pd.DataFrame(daily_results)
-    comparison = comparison.sort_values('Date').reset_index(drop=True)
-    
-    # Calculate cumulative returns (starting from 1)
-    comparison['Cumulative_SmallPositions'] = (1 + comparison['Return_SmallPositions'].fillna(0)).cumprod()
-    comparison['Cumulative_Graduated'] = (1 + comparison['Return_Graduated'].fillna(0)).cumprod()
-    
-    return comparison, graduated_tickers
+    for ticker, grad_info in graduated_stocks.items():
+        ticker_df = df[df['Bloomberg Name'] == ticker].copy()
+        ticker_df = ticker_df.sort_values('Date').reset_index(drop=True)
+
+        graduation_date = grad_info['graduation_date']
+        small_start_idx = grad_info['small_start_idx']
+
+        for idx in range(len(ticker_df)):
+            row = ticker_df.iloc[idx]
+
+            # Skip if no yesterday price (can't calculate return)
+            if pd.isna(row['Yesterday_Price']):
+                continue
+
+            # Skip if affiliated
+            if row['affiliation_check'] != 0:
+                continue
+
+            # Skip if before small period started
+            if idx < small_start_idx:
+                continue
+
+            # Determine period
+            if row['Date'] < graduation_date:
+                period = 'Before_Graduation_<1%'
+            else:
+                period = 'After_Graduation_>=1%'
+
+            all_returns.append({
+                'ETF': etf_name,
+                'Ticker': ticker,
+                'Date': row['Date'],
+                'Weight': row['Weight'],
+                'Daily_Return': row['Daily_Return'],
+                'Daily_PnL': row['Daily_PnL'],
+                'Period': period,
+                'Graduation_Date': graduation_date
+            })
+
+    returns_df = pd.DataFrame(all_returns)
+
+    return returns_df, graduated_stocks
 
 def calculate_all_graduated_returns():
     """Calculate graduated returns for all ETFs"""
@@ -133,88 +137,128 @@ def calculate_all_graduated_returns():
     etfs = get_selected_etfs()
 
     all_results = {}
-    all_graduated_tickers = {}
+    all_graduated_stocks = {}
 
-    # Calculate for all ETFs
     for etf in etfs:
-        data, graduated = calculate_graduated_returns(etf)
-        all_results[etf] = data
-        all_graduated_tickers[etf] = graduated
-        print(f"  ✓ {etf}: Graduation analysis")
+        returns_df, graduated_stocks = calculate_graduated_returns(etf)
+        all_results[etf] = returns_df
+        all_graduated_stocks[etf] = graduated_stocks
+        print(f"  ✓ {etf}: {len(graduated_stocks)} graduated stocks, {len(returns_df)} return records")
 
-    return all_results, all_graduated_tickers
+    return all_results, all_graduated_stocks
 
-def save_graduation_data(all_results, all_graduated_tickers):
+def save_graduation_data(all_results, all_graduated_stocks):
     """Save graduation analysis data to Excel"""
 
     output_dir = OUTPUT_DIRS['graduation']
     os.makedirs(output_dir, exist_ok=True)
 
-    # Use consistent naming with weight range folder suffix
-    folder_suffix = CURRENT_RANGE['folder'] if CURRENT_RANGE else 'under_1pct'
-    output_file = f"{output_dir}/{folder_suffix}_Graduation_Returns_Data.xlsx"
-    
+    # Use consistent naming
+    output_file = f"{output_dir}/Graduation_Returns_Data.xlsx"
+
     with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
         # Summary sheet
         summary_data = []
         for etf in all_results.keys():
-            data = all_results[etf]
-            final_small = (data['Cumulative_SmallPositions'].iloc[-1] - 1) * 100
-            final_grad = (data['Cumulative_Graduated'].iloc[-1] - 1) * 100
-            
-            # Calculate average number of graduated positions in large state
-            avg_graduated_large = data['Num_Graduated_Large'].mean()
-            
+            returns_df = all_results[etf]
+
+            if len(returns_df) == 0:
+                summary_data.append({
+                    'ETF': etf,
+                    'Num_Graduated_Stocks': 0,
+                    'Total_Records_Before': 0,
+                    'Total_Records_After': 0,
+                    'Mean_Return_Before_%': 0,
+                    'Mean_Return_After_%': 0,
+                    'Median_Return_Before_%': 0,
+                    'Median_Return_After_%': 0,
+                    'Std_Return_Before_%': 0,
+                    'Std_Return_After_%': 0,
+                    'Mean_PnL_Before': 0,
+                    'Mean_PnL_After': 0,
+                    'Median_PnL_Before': 0,
+                    'Median_PnL_After': 0,
+                    'Total_PnL_Before': 0,
+                    'Total_PnL_After': 0
+                })
+                continue
+
+            before_df = returns_df[returns_df['Period'] == 'Before_Graduation_<1%']
+            after_df = returns_df[returns_df['Period'] == 'After_Graduation_>=1%']
+
+            before_returns = before_df['Daily_Return']
+            after_returns = after_df['Daily_Return']
+            before_pnl = before_df['Daily_PnL']
+            after_pnl = after_df['Daily_PnL']
+
             summary_data.append({
                 'ETF': etf,
-                'Final_Return_AllSmall_%': round(final_small, 2),
-                'Final_Return_Graduated_%': round(final_grad, 2),
-                'Difference_%': round(final_grad - final_small, 2),
-                'Num_Graduated_Tickers': len(all_graduated_tickers[etf]),
-                'Avg_Graduated_Large': round(avg_graduated_large, 2)
+                'Num_Graduated_Stocks': len(all_graduated_stocks[etf]),
+                'Total_Records_Before': len(before_returns),
+                'Total_Records_After': len(after_returns),
+                'Mean_Return_Before_%': before_returns.mean() * 100 if len(before_returns) > 0 else 0,
+                'Mean_Return_After_%': after_returns.mean() * 100 if len(after_returns) > 0 else 0,
+                'Median_Return_Before_%': before_returns.median() * 100 if len(before_returns) > 0 else 0,
+                'Median_Return_After_%': after_returns.median() * 100 if len(after_returns) > 0 else 0,
+                'Std_Return_Before_%': before_returns.std() * 100 if len(before_returns) > 0 else 0,
+                'Std_Return_After_%': after_returns.std() * 100 if len(after_returns) > 0 else 0,
+                'Mean_PnL_Before': before_pnl.mean() if len(before_pnl) > 0 else 0,
+                'Mean_PnL_After': after_pnl.mean() if len(after_pnl) > 0 else 0,
+                'Median_PnL_Before': before_pnl.median() if len(before_pnl) > 0 else 0,
+                'Median_PnL_After': after_pnl.median() if len(after_pnl) > 0 else 0,
+                'Total_PnL_Before': before_pnl.sum() if len(before_pnl) > 0 else 0,
+                'Total_PnL_After': after_pnl.sum() if len(after_pnl) > 0 else 0
             })
-        
+
         summary_df = pd.DataFrame(summary_data)
         summary_df.to_excel(writer, sheet_name='Summary', index=False)
 
-        # Daily data for each ETF
+        # Detailed returns for each ETF
         for etf in all_results.keys():
-            data = all_results[etf].copy()
+            returns_df = all_results[etf].copy()
 
-            # Calculate cumulative returns as percentages
-            data['Cumulative_Return_Small_%'] = (data['Cumulative_SmallPositions'] - 1) * 100
-            data['Cumulative_Return_Graduated_%'] = (data['Cumulative_Graduated'] - 1) * 100
+            if len(returns_df) > 0:
+                # Convert return to percentage
+                returns_df['Daily_Return_%'] = returns_df['Daily_Return'] * 100
 
-            # Select columns for output
-            output_data = data[['Date',
-                               'Cumulative_Return_Small_%', 'Cumulative_Return_Graduated_%',
-                               'Num_Small_Positions', 'Num_Graduated_Large']].copy()
+                # Select columns for output
+                output_data = returns_df[['Date', 'Ticker', 'Weight', 'Daily_Return_%',
+                                         'Daily_PnL', 'Period', 'Graduation_Date']].copy()
 
-            output_data.to_excel(writer, sheet_name=etf, index=False)
+                output_data.to_excel(writer, sheet_name=etf, index=False)
+            else:
+                # Empty DataFrame with column headers
+                pd.DataFrame(columns=['Date', 'Ticker', 'Weight', 'Daily_Return_%',
+                                    'Daily_PnL', 'Period', 'Graduation_Date']).to_excel(writer, sheet_name=etf, index=False)
 
-        # List of graduated tickers
+        # List of graduated stocks
         graduated_list = []
-        for etf, tickers in all_graduated_tickers.items():
-            for ticker in tickers:
-                graduated_list.append({'ETF': etf, 'Ticker': ticker})
-        
+        for etf, stocks_dict in all_graduated_stocks.items():
+            for ticker, grad_info in stocks_dict.items():
+                graduated_list.append({
+                    'ETF': etf,
+                    'Ticker': ticker,
+                    'Graduation_Date': grad_info['graduation_date']
+                })
+
         graduated_df = pd.DataFrame(graduated_list)
-        graduated_df.to_excel(writer, sheet_name='Graduated_Tickers', index=False)
+        if len(graduated_df) > 0:
+            graduated_df = graduated_df.sort_values(['ETF', 'Graduation_Date'])
+        graduated_df.to_excel(writer, sheet_name='Graduated_Stocks', index=False)
 
-
-
+    print(f"  📊 Saved: {output_file}")
     return summary_df
 
 def run():
     """Main function to calculate and save graduation analysis data"""
 
     # Calculate graduated returns
-    all_results, all_graduated_tickers = calculate_all_graduated_returns()
+    all_results, all_graduated_stocks = calculate_all_graduated_returns()
 
     # Save data
-    save_graduation_data(all_results, all_graduated_tickers)
+    save_graduation_data(all_results, all_graduated_stocks)
 
-    return all_results, all_graduated_tickers
+    return all_results, all_graduated_stocks
 
 if __name__ == "__main__":
     run()

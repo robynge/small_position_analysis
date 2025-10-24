@@ -39,19 +39,19 @@ def plot_alternative_returns_charts():
         fig, ax = plt.subplots(figsize=(12, 6))
 
         # Cumulative Returns
-        ax.plot(daily_data['Date'], daily_data['Cumulative_Actual'] * 100 - 100,
+        ax.plot(daily_data['Date'], daily_data['Cumulative_Actual'] * 100,
                 color='black', linewidth=2.5, label=f'Total {etf} Return', alpha=0.7)
-        ax.plot(daily_data['Date'], daily_data['Cumulative_ExcludeSmall'] * 100 - 100,
+        ax.plot(daily_data['Date'], daily_data['Cumulative_ExcludeSmall'] * 100,
                 color=colors[etf], linewidth=2.5,
                 label=f'Excluding {CURRENT_RANGE["label"] if CURRENT_RANGE else "<1%"} Positions', alpha=0.5)
-        ax.plot(daily_data['Date'], daily_data['Cumulative_SmallOnly'] * 100 - 100,
+        ax.plot(daily_data['Date'], daily_data['Cumulative_SmallOnly'] * 100,
                 color='purple', linewidth=2.5,
                 label=f'{CURRENT_RANGE["label"] if CURRENT_RANGE else "<1%"} Positions Only', alpha=0.5)
 
         # Fill between the lines
         ax.fill_between(daily_data['Date'],
-                        daily_data['Cumulative_ExcludeSmall'] * 100 - 100,
-                        daily_data['Cumulative_SmallOnly'] * 100 - 100,
+                        daily_data['Cumulative_ExcludeSmall'] * 100,
+                        daily_data['Cumulative_SmallOnly'] * 100,
                         alpha=0.1, color='gray')
 
         ax.set_title(f'{etf} - Cumulative Returns', fontsize=14, fontweight='bold')

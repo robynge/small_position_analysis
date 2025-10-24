@@ -247,123 +247,232 @@ def run_specific_module_all_ranges(module_key):
     print(f"✅ Completed")
     print(f"{'='*60}")
 
-def main():
-    """Main menu system"""
-    # Set default to first weight range initially
-    if not CURRENT_RANGE:
-        set_current_range(WEIGHT_RANGES[0])  # Default to first range
+def select_multiple_etfs():
+    """Let user select multiple ETFs"""
+    print("\n" + "="*60)
+    print("Select ETFs for Analysis (enter numbers separated by comma)")
+    print("="*60)
 
-    while True:
-        print_menu()
-        choice = input("\nSelect option: ").strip().upper()
-        
-        if choice == 'Q':
-            print("\n👋 Goodbye!")
-            break
-            
-        elif choice == 'A':
-            # Check if ETF is selected
-            if not config.SELECTED_ETF:
-                print("❌ Please select an ETF first (option E)")
-                continue
-            # Run all steps for current range
-            run_all_modules()
+    # Get all available ETF files
+    available = get_available_etf_files()
 
-        elif choice == 'B':
-            # Check if ETF is selected
-            if not config.SELECTED_ETF:
-                print("❌ Please select an ETF first (option E)")
-                continue
-            # Batch run for all ranges
-            batch_run_all_ranges()
+    if not available:
+        print("❌ No data files found in input folder!")
+        return []
 
-        elif choice == 'R':
-            # Select weight range
-            result = select_weight_range()
-            if result == 'ALL_RANGES':
-                # Set a special marker for all ranges mode
-                # We'll use a global variable to track this without modifying CURRENT_RANGE
-                globals()['ALL_RANGES_MODE'] = True
-                print("✅ Set to ALL RANGES mode - now select which step(s) to run")
-            elif result and result != False:
-                globals()['ALL_RANGES_MODE'] = False  # Clear all ranges mode
-                print(f"✅ Weight range set to: {result['label']}")
+    # Show available ETF files
+    print("\nAvailable ETFs:")
+    print("-"*60)
 
-        elif choice == 'E':
-            # Select ETF for analysis
-            select_etf()
-                
-        elif choice in modules:
-            # Check if ETF is selected
-            if not config.SELECTED_ETF:
-                print("❌ Please select an ETF first (option E)")
-                continue
-            # Check if we're in all ranges mode
-            if globals().get('ALL_RANGES_MODE', False):
-                # In all ranges mode, directly run for all ranges
-                run_specific_module_all_ranges(choice)
-                # Clear the all ranges mode flag
-                globals()['ALL_RANGES_MODE'] = False
-            else:
-                # Ask if user wants to run for current range or all ranges
-                print(f"\nRun '{modules[choice][1]}' for:")
-                print("  1. Current range only")
-                print("  2. All ranges")
-                sub_choice = input("Select (1-2): ").strip()
-                
-                if sub_choice == '1':
-                    # Run for current range only
-                    create_directories()  # Ensure directories exist
-                    module_name, description = modules[choice]
-                    run_module(module_name, description)
-                    print("\n✅ Module completed!")
-                elif sub_choice == '2':
-                    # Run for all ranges
-                    run_specific_module_all_ranges(choice)
-                else:
-                    print("Invalid choice")
-            
+    etf_list = ['ARKF', 'ARKG', 'ARKK', 'ARKQ', 'ARKW', 'ARKX']
+    for i, etf in enumerate(etf_list, 1):
+        if etf in available:
+            print(f"  {i}. {etf}")
         else:
-            # Parse multiple choices
-            choices = [c.strip() for c in choice.split(',')]
-            valid_choices = []
-            
-            for c in choices:
-                if c in modules:
-                    valid_choices.append(c)
-                else:
-                    print(f"⚠️  Invalid choice: {c}")
-            
-            if valid_choices:
-                # Check if we're in all ranges mode
-                if globals().get('ALL_RANGES_MODE', False):
-                    # In all ranges mode, directly run for all ranges
-                    for c in valid_choices:
-                        run_specific_module_all_ranges(c)
-                    print("\n✅ Selected steps completed for all ranges!")
-                    # Clear the all ranges mode flag
-                    globals()['ALL_RANGES_MODE'] = False
-                else:
-                    # Ask if user wants to run for current range or all ranges
-                    print(f"\nRun selected modules for:")
-                    print("  1. Current range only")
-                    print("  2. All ranges")
-                    sub_choice = input("Select (1-2): ").strip()
-                    
-                    if sub_choice == '1':
-                        # Run for current range
-                        create_directories()  # Ensure directories exist
-                        for c in valid_choices:
-                            module_name, description = modules[c]
-                            run_module(module_name, description)
-                        print("\n✅ Selected steps completed!")
-                    elif sub_choice == '2':
-                        # Run for all ranges
-                        for c in valid_choices:
-                            run_specific_module_all_ranges(c)
-                        print("\n✅ Selected steps completed for all ranges!")
-                    else:
-                        print("Invalid choice")
+            print(f"  {i}. {etf} (NOT FOUND)")
+
+    print("-"*60)
+    print("Examples: '1,3,5' or '1-6' for all")
+    print("-"*60)
+
+    choice = input("\nSelect ETFs (e.g., 1,2,3): ").strip()
+
+    # Parse input
+    selected_etfs = []
+    if '-' in choice:
+        # Handle range like '1-6'
+        parts = choice.split('-')
+        if len(parts) == 2:
+            try:
+                start = int(parts[0])
+                end = int(parts[1])
+                for i in range(start, end + 1):
+                    if 1 <= i <= len(etf_list):
+                        etf = etf_list[i-1]
+                        if etf in available:
+                            selected_etfs.append(etf)
+            except:
+                print("Invalid range format")
+                return []
+    else:
+        # Handle comma-separated like '1,3,5'
+        numbers = [n.strip() for n in choice.split(',')]
+        for n in numbers:
+            try:
+                idx = int(n)
+                if 1 <= idx <= len(etf_list):
+                    etf = etf_list[idx-1]
+                    if etf in available:
+                        selected_etfs.append(etf)
+            except:
+                print(f"Invalid number: {n}")
+
+    if selected_etfs:
+        print(f"\n✅ Selected ETFs: {', '.join(selected_etfs)}")
+    else:
+        print("❌ No valid ETFs selected")
+
+    return selected_etfs
+
+def select_multiple_ranges():
+    """Let user select multiple weight ranges"""
+    print("\n" + "="*60)
+    print("Select Weight Ranges (enter numbers separated by comma)")
+    print("="*60)
+
+    for i, range_config in enumerate(WEIGHT_RANGES, 1):
+        print(f"  {i}. {range_config['label']}")
+
+    print("-"*60)
+    print("Examples: '1,3,5' or '1-5' for all")
+    print("-"*60)
+
+    choice = input("\nSelect ranges (e.g., 1,2,3): ").strip()
+
+    # Parse input
+    selected_ranges = []
+    if '-' in choice:
+        # Handle range like '1-5'
+        parts = choice.split('-')
+        if len(parts) == 2:
+            try:
+                start = int(parts[0])
+                end = int(parts[1])
+                for i in range(start, end + 1):
+                    if 1 <= i <= len(WEIGHT_RANGES):
+                        selected_ranges.append(WEIGHT_RANGES[i-1])
+            except:
+                print("Invalid range format")
+                return []
+    else:
+        # Handle comma-separated like '1,3,5'
+        numbers = [n.strip() for n in choice.split(',')]
+        for n in numbers:
+            try:
+                idx = int(n)
+                if 1 <= idx <= len(WEIGHT_RANGES):
+                    selected_ranges.append(WEIGHT_RANGES[idx-1])
+            except:
+                print(f"Invalid number: {n}")
+
+    if selected_ranges:
+        labels = [r['label'] for r in selected_ranges]
+        print(f"\n✅ Selected ranges: {', '.join(labels)}")
+    else:
+        print("❌ No valid ranges selected")
+
+    return selected_ranges
+
+def select_multiple_steps():
+    """Let user select multiple analysis steps"""
+    print("\n" + "="*60)
+    print("Select Analysis Steps (enter numbers separated by comma)")
+    print("="*60)
+
+    # Show all available steps
+    step_list = []
+    for key in sorted(modules.keys()):
+        _, desc = modules[key]
+        step_list.append(key)
+        indent = "    " if '.' in key else "  "
+        print(f"{indent}{key}. {desc}")
+
+    print("\n  A. Run ALL steps")
+    print("-"*60)
+    print("Examples: '0,1,2' or 'A' for all")
+    print("-"*60)
+
+    choice = input("\nSelect steps (e.g., 1,3,4.1): ").strip().upper()
+
+    # Parse input
+    selected_steps = []
+    if choice == 'A':
+        # Select all steps
+        selected_steps = list(modules.keys())
+    else:
+        # Handle comma-separated
+        step_inputs = [s.strip() for s in choice.split(',')]
+        for s in step_inputs:
+            if s in modules:
+                selected_steps.append(s)
+            else:
+                print(f"Invalid step: {s}")
+
+    if selected_steps:
+        print(f"\n✅ Selected {len(selected_steps)} steps")
+    else:
+        print("❌ No valid steps selected")
+
+    return selected_steps
+
+def main():
+    """Main batch selection system"""
+    print("\n" + "="*60)
+    print("ARK ETF Position Analysis - Batch Mode")
+    print("="*60)
+
+    # Step 1: Select ETFs
+    selected_etfs = select_multiple_etfs()
+    if not selected_etfs:
+        print("\n❌ No ETFs selected. Exiting.")
+        return
+
+    # Step 2: Select ranges
+    selected_ranges = select_multiple_ranges()
+    if not selected_ranges:
+        print("\n❌ No ranges selected. Exiting.")
+        return
+
+    # Step 3: Select steps
+    selected_steps = select_multiple_steps()
+    if not selected_steps:
+        print("\n❌ No steps selected. Exiting.")
+        return
+
+    # Confirm before running
+    print("\n" + "="*60)
+    print("SUMMARY")
+    print("="*60)
+    print(f"ETFs:   {', '.join(selected_etfs)}")
+    print(f"Ranges: {', '.join([r['label'] for r in selected_ranges])}")
+    print(f"Steps:  {len(selected_steps)} steps")
+    print("-"*60)
+
+    confirm = input("\nProceed with analysis? (Y/N): ").strip().upper()
+    if confirm != 'Y':
+        print("\n❌ Cancelled.")
+        return
+
+    # Run analysis
+    print("\n" + "="*60)
+    print("RUNNING ANALYSIS")
+    print("="*60)
+
+    total_runs = len(selected_etfs) * len(selected_ranges) * len(selected_steps)
+    current_run = 0
+
+    for etf in selected_etfs:
+        # Set current ETF
+        set_selected_etf(etf)
+
+        for range_config in selected_ranges:
+            # Set current range
+            set_current_range(range_config)
+            create_directories()
+
+            print(f"\n{'='*60}")
+            print(f"ETF: {etf} | Range: {range_config['label']}")
+            print(f"{'='*60}")
+
+            for step_key in selected_steps:
+                current_run += 1
+                module_name, description = modules[step_key]
+                print(f"\n[{current_run}/{total_runs}] {description}")
+                run_module(module_name, description)
+
+    print(f"\n{'='*60}")
+    print("✅ ALL ANALYSIS COMPLETED")
+    print(f"{'='*60}")
 
 def quick_run_all():
     """Quick function to run all steps without menu"""
