@@ -53,17 +53,20 @@ def calculate_returns_comparison(etf_name):
         date_df['Yesterday_Weight'] = (date_df['Yesterday_Value'] / total_yesterday_value) * 100
 
         # Filter based on current weight range
+        # Exclude positions with affiliation_check == 1 from being considered small
         if CURRENT_RANGE:
             # Positions IN the current range (to be excluded from alternative return)
             in_range = date_df[(date_df['Yesterday_Weight'] >= CURRENT_RANGE['min']) &
-                              (date_df['Yesterday_Weight'] < CURRENT_RANGE['max'])]
+                              (date_df['Yesterday_Weight'] < CURRENT_RANGE['max']) &
+                              (date_df['affiliation_check'] == 0)]
             # Positions OUTSIDE the current range (to be kept for alternative return)
             out_of_range = date_df[(date_df['Yesterday_Weight'] < CURRENT_RANGE['min']) |
-                                   (date_df['Yesterday_Weight'] >= CURRENT_RANGE['max'])]
+                                   (date_df['Yesterday_Weight'] >= CURRENT_RANGE['max']) |
+                                   (date_df['affiliation_check'] == 1)]
         else:
             # Default fallback when no range specified
-            in_range = date_df[date_df['Yesterday_Weight'] < 1]
-            out_of_range = date_df[date_df['Yesterday_Weight'] >= 1]
+            in_range = date_df[(date_df['Yesterday_Weight'] < 1) & (date_df['affiliation_check'] == 0)]
+            out_of_range = date_df[(date_df['Yesterday_Weight'] >= 1) | (date_df['affiliation_check'] == 1)]
         
         large_positions = out_of_range  # Positions to keep
         small_positions = in_range      # Positions to exclude
@@ -83,13 +86,7 @@ def calculate_returns_comparison(etf_name):
             'Date': date,
             'Return_Actual': return_actual,
             'Return_ExcludeSmall': return_exclude_small,
-            'Return_SmallOnly': return_small_only,
-            'Total_Yesterday_Value': total_yesterday_value,
-            'Total_Today_Value': total_today_value,
-            'Large_Yesterday_Value': large_yesterday_value,
-            'Large_Today_Value': large_today_value,
-            'Small_Yesterday_Value': small_yesterday_value,
-            'Small_Today_Value': small_today_value
+            'Return_SmallOnly': return_small_only
         })
     
     comparison = pd.DataFrame(daily_results)
@@ -109,67 +106,24 @@ def save_alternative_returns_data():
 
     # Store all results
     all_results = {}
-    all_weekly_results = {}
 
     # Calculate for all ETFs
     for etf in etfs:
         daily_data = calculate_returns_comparison(etf)
         all_results[etf] = daily_data
         print(f"  ✓ {etf}: Alternative returns")
-        
-        # Convert to weekly data
-        daily_data['Week'] = pd.to_datetime(daily_data['Date']).dt.to_period('W')
-        
-        # Calculate weekly returns from daily cumulative returns
-        weekly_data = daily_data.groupby('Week').agg({
-            'Date': 'last',
-            'Cumulative_Actual': 'last',
-            'Cumulative_ExcludeSmall': 'last',
-            'Cumulative_SmallOnly': 'last'
-        }).reset_index()
-        
-        # Calculate weekly returns
-        weekly_data['Weekly_Return_Actual'] = weekly_data['Cumulative_Actual'].pct_change()
-        weekly_data['Weekly_Return_ExcludeSmall'] = weekly_data['Cumulative_ExcludeSmall'].pct_change()
-        weekly_data['Weekly_Return_SmallOnly'] = weekly_data['Cumulative_SmallOnly'].pct_change()
-        
-        # For first week, use the cumulative return as the weekly return
-        if len(weekly_data) > 0:
-            weekly_data.loc[0, 'Weekly_Return_Actual'] = weekly_data.loc[0, 'Cumulative_Actual'] - 1
-            weekly_data.loc[0, 'Weekly_Return_ExcludeSmall'] = weekly_data.loc[0, 'Cumulative_ExcludeSmall'] - 1
-            weekly_data.loc[0, 'Weekly_Return_SmallOnly'] = weekly_data.loc[0, 'Cumulative_SmallOnly'] - 1
-        
-        all_weekly_results[etf] = weekly_data
-    
-    # Save data to Excel with weekly data
+
+    # Save data to Excel
     folder_suffix = CURRENT_RANGE['folder'] if CURRENT_RANGE else 'Alternative'
     output_filename = f"{folder_suffix}_Returns_Data.xlsx"
     output_path = f"{OUTPUT_DIRS['returns']}/{output_filename}"
-    
+
     with pd.ExcelWriter(output_path) as writer:
         # Save daily data for each ETF
         for etf in etfs:
             daily_data = all_results[etf]
             daily_data.to_excel(writer, sheet_name=f'{etf}_Daily', index=False)
-        
-        # Save weekly data for each ETF
-        for etf in etfs:
-            weekly_data = all_weekly_results[etf].copy()
-            
-            # Select and rename columns for output
-            output_data = pd.DataFrame({
-                'Week': weekly_data['Week'].astype(str),
-                'Date': weekly_data['Date'],
-                'Weekly_Return_Total_%': weekly_data['Weekly_Return_Actual'] * 100,
-                'Weekly_Return_SmallOnly_%': weekly_data['Weekly_Return_SmallOnly'] * 100,
-                'Weekly_Return_ExcludeSmall_%': weekly_data['Weekly_Return_ExcludeSmall'] * 100,
-                'Cumulative_Return_Total_%': (weekly_data['Cumulative_Actual'] - 1) * 100,
-                'Cumulative_Return_SmallOnly_%': (weekly_data['Cumulative_SmallOnly'] - 1) * 100,
-                'Cumulative_Return_ExcludeSmall_%': (weekly_data['Cumulative_ExcludeSmall'] - 1) * 100
-            })
-            
-            output_data.to_excel(writer, sheet_name=f'{etf}_Weekly', index=False)
-        
+
         # Create summary sheet with final results
         summary_data = []
         for etf in etfs:
@@ -177,7 +131,7 @@ def save_alternative_returns_data():
             final_actual = (data['Cumulative_Actual'].iloc[-1] - 1) * 100
             final_small = (data['Cumulative_SmallOnly'].iloc[-1] - 1) * 100
             final_exclude = (data['Cumulative_ExcludeSmall'].iloc[-1] - 1) * 100
-            
+
             summary_data.append({
                 'ETF': etf,
                 'Final_Cumulative_Return_Total_%': final_actual,
@@ -186,12 +140,12 @@ def save_alternative_returns_data():
                 'Small_vs_Total_Difference_%': final_small - final_actual,
                 'ExcludeSmall_vs_Total_Difference_%': final_exclude - final_actual
             })
-        
+
         summary_df = pd.DataFrame(summary_data)
         summary_df.to_excel(writer, sheet_name='Summary', index=False)
 
 
-    return all_results, all_weekly_results, summary_df
+    return all_results, summary_df
 
 def run():
     """Main function to calculate and save alternative returns data"""

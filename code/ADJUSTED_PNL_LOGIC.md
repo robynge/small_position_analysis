@@ -28,9 +28,9 @@ Adjusted P&L = Dollar P&L - Inflows/Outflows
 ```
 Dollar P&L = Day1_MV - 0
 Inflows = Day1_Position × Day1_Price
-Adjusted P&L = Dollar P&L - Inflows
+Adjusted P&L = 0
 ```
-*Note: All P&L is attributed to inflow, not investment performance*
+*Note: First day of position has no P&L - no previous day to compare against*
 
 **3. Exit Position (Day0 > 0, Day1 = 0)**
 ```

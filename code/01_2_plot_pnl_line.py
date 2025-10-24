@@ -51,27 +51,54 @@ def plot_pnl_charts():
         ax.grid(True, alpha=0.3)
         ax.axhline(y=0, color='black', linestyle='-', linewidth=0.5, alpha=0.5)
 
-        # Align the zero lines of both y-axes
-        # Get the limits of both axes
-        cum_min, cum_max = ax.get_ylim()
-        daily_min, daily_max = ax2.get_ylim()
+        # Get actual data min/max for both axes
+        cum_data_min = pnl_data['Cumulative_Adj_PnL'].min()
+        cum_data_max = pnl_data['Cumulative_Adj_PnL'].max()
+        daily_data_min = pnl_data['Adj_PnL'].min()
+        daily_data_max = pnl_data['Adj_PnL'].max()
 
-        # Calculate the ratio to align zeros
-        # Zero should be at the same position on both axes
+        # Add 5% padding to data ranges
+        cum_padding = (cum_data_max - cum_data_min) * 0.05
+        daily_padding = (daily_data_max - daily_data_min) * 0.05
+
+        cum_min = cum_data_min - cum_padding
+        cum_max = cum_data_max + cum_padding
+        daily_min = daily_data_min - daily_padding
+        daily_max = daily_data_max + daily_padding
+
+        # Set daily axis range based on daily data (user requirement)
+        ax2.set_ylim(daily_min, daily_max)
+
+        # Align zero lines: adjust cumulative range to match daily's zero position
         if cum_min < 0 and cum_max > 0 and daily_min < 0 and daily_max > 0:
-            # Both axes cross zero
-            cum_ratio = abs(cum_min) / (cum_max - cum_min)
-            daily_ratio = abs(daily_min) / (daily_max - daily_min)
+            # Calculate where 0 appears in daily range (as fraction from bottom)
+            zero_position = abs(daily_min) / (daily_max - daily_min)
 
-            # Adjust limits to align zero positions
-            if cum_ratio > daily_ratio:
-                # Expand daily axis bottom
-                new_daily_min = -daily_max * cum_ratio / (1 - cum_ratio)
-                ax2.set_ylim(new_daily_min, daily_max)
+            # Calculate how cumulative range should be adjusted
+            # Target: abs(cum_min) / (cum_max - cum_min) = zero_position
+            # This means: below_zero / above_zero = zero_position / (1 - zero_position)
+            cum_below_zero = abs(cum_min)
+            cum_above_zero = cum_max
+            target_ratio = zero_position / (1 - zero_position)
+            current_ratio = cum_below_zero / cum_above_zero
+
+            if current_ratio < target_ratio:
+                # Need to expand below zero (make cum_min more negative)
+                new_cum_min = -cum_above_zero * target_ratio
+                new_cum_max = cum_max
             else:
-                # Expand daily axis top
-                new_daily_max = -daily_min * (1 - cum_ratio) / cum_ratio
-                ax2.set_ylim(daily_min, new_daily_max)
+                # Need to expand above zero (make cum_max larger)
+                new_cum_max = cum_below_zero / target_ratio
+                new_cum_min = cum_min
+
+            # Ensure original data range is still visible
+            new_cum_min = min(new_cum_min, cum_min)
+            new_cum_max = max(new_cum_max, cum_max)
+
+            ax.set_ylim(new_cum_min, new_cum_max)
+        else:
+            # If not both crossing zero, just use data ranges
+            ax.set_ylim(cum_min, cum_max)
 
         # Format y-axes
         ax.yaxis.set_major_formatter(plt.FuncFormatter(format_value))

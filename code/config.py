@@ -48,6 +48,9 @@ DATA_FILES = {}
 AVAILABLE_ETF_FILES = {}  # Store the latest file for each ETF
 SELECTED_ETF = None  # Currently selected ETF for analysis
 
+# Cache for consolidated data file (to avoid re-reading large file)
+_CONSOLIDATED_DATA_CACHE = None
+
 # Initialize with None - will be set when a range is selected
 OUTPUT_DIRS = None
 
@@ -56,32 +59,22 @@ OUTPUT_DIRS = None
 # ============================================================================
 
 def find_latest_etf_files():
-    """Find data files for each ETF in the input folder"""
+    """Find consolidated ETF data file in the input folder"""
     global AVAILABLE_ETF_FILES
     AVAILABLE_ETF_FILES = {}
 
-    # Search in input folder
+    # Search for consolidated file
     search_path = INPUT_DIR
+    consolidated_file = search_path / "Consolidated_ETF_Holdings.xlsx"
 
-    if search_path.exists():
-        # Find all files for each ETF
+    if consolidated_file.exists():
+        # All ETFs use the same consolidated file
         for fund in ['ARKF', 'ARKG', 'ARKK', 'ARKQ', 'ARKW', 'ARKX']:
-            # Look for files with pattern FUND_Transformed_Data.xlsx
-            pattern = str(search_path / f"{fund}_Transformed_Data.xlsx")
-            files = glob.glob(pattern)
-
-            for file in files:
-                # Skip temporary Excel files
-                if '~$' in file:
-                    continue
-
-                file_path = Path(file)
-                if file_path.exists():
-                    AVAILABLE_ETF_FILES[fund] = {
-                        'path': file_path,
-                        'date': 'latest',
-                        'exists': True
-                    }
+            AVAILABLE_ETF_FILES[fund] = {
+                'path': consolidated_file,
+                'date': 'latest',
+                'exists': True
+            }
 
 def set_selected_etf(etf_name):
     """Set single ETF to use for analysis"""
@@ -197,6 +190,7 @@ def get_selected_etfs():
 def load_etf_data(etf_name):
     """
     Unified data loading function with standard preprocessing
+    Reads from consolidated file and extracts specific ETF data
 
     Args:
         etf_name: ETF name (ARKF, ARKG, ARKK, ARKQ, ARKW, ARKX)
@@ -204,9 +198,42 @@ def load_etf_data(etf_name):
     Returns:
         DataFrame with Date converted to datetime and Weight converted to percentage
         Filters out currency assets and problematic stocks
+        Includes affiliation_check column for filtering
     """
-    df = pd.read_excel(get_data_path(etf_name), sheet_name=SHEET_NAME)
+    global _CONSOLIDATED_DATA_CACHE
+
+    # Read consolidated file (with caching to avoid re-reading large file)
+    if _CONSOLIDATED_DATA_CACHE is None:
+        print("Loading consolidated data file (this may take a moment)...")
+        _CONSOLIDATED_DATA_CACHE = pd.read_excel(get_data_path(etf_name), sheet_name=SHEET_NAME)
+        print(f"✓ Loaded {len(_CONSOLIDATED_DATA_CACHE):,} rows")
+
+    consolidated_df = _CONSOLIDATED_DATA_CACHE
+
+    # Extract columns for specific ETF
+    position_col = f'{etf_name}_Position'
+    mv_col = f'{etf_name}_MV'
+    weight_col = f'{etf_name}_Weight'
+
+    # Select relevant columns
+    df = consolidated_df[['Date', 'Bloomberg Name', position_col, mv_col, weight_col, 'affiliation check']].copy()
+
+    # Rename columns to standard names
+    df.rename(columns={
+        position_col: 'Position',
+        mv_col: 'MV',
+        weight_col: 'Weight',
+        'affiliation check': 'affiliation_check'
+    }, inplace=True)
+
+    # Calculate Stock_Price from MV and Position
+    df['Stock_Price'] = np.where(df['Position'] > 0, df['MV'] / df['Position'], np.nan)
+
+    # Convert Date to datetime
     df['Date'] = pd.to_datetime(df['Date'])
+
+    # Filter out rows where the ETF doesn't hold this position (all values are NaN)
+    df = df.dropna(subset=['Position', 'Weight'], how='all').copy()
 
     # Filter out currency assets and problematic stocks
     if 'Bloomberg Name' in df.columns:
@@ -219,30 +246,41 @@ def load_etf_data(etf_name):
     # Convert Weight from decimal to percentage (0.04 -> 4.0)
     df['Weight'] = df['Weight'] * 100
 
+    # Add backward compatibility columns
+    df['Company_Name'] = df['Bloomberg Name']  # For legacy code compatibility
+    df['Market Value'] = df['MV']  # For legacy code compatibility
+
     return df
 
 def filter_by_weight_range(df, weight_range=None):
     """
-    Filter DataFrame by weight range
+    Filter DataFrame by weight range and exclude affiliation check positions
 
     Args:
-        df: DataFrame with 'Weight' column (in percentage format)
+        df: DataFrame with 'Weight' and 'affiliation_check' columns (in percentage format)
         weight_range: Weight range dict with 'min' and 'max' keys
                       If None, uses CURRENT_RANGE
                       If CURRENT_RANGE is also None, defaults to <1%
 
     Returns:
-        Filtered DataFrame
+        Filtered DataFrame (excludes positions with affiliation_check == 1)
     """
     if weight_range is None:
         weight_range = CURRENT_RANGE
 
+    # Filter by weight range
     if weight_range:
-        return df[(df['Weight'] >= weight_range['min']) &
-                 (df['Weight'] < weight_range['max'])].copy()
+        filtered = df[(df['Weight'] >= weight_range['min']) &
+                     (df['Weight'] < weight_range['max'])].copy()
     else:
         # Default fallback for backward compatibility
-        return df[df['Weight'] < 1].copy()
+        filtered = df[df['Weight'] < 1].copy()
+
+    # Exclude positions with affiliation_check == 1
+    if 'affiliation_check' in filtered.columns:
+        filtered = filtered[filtered['affiliation_check'] == 0].copy()
+
+    return filtered
 
 def calculate_yesterday_values(df):
     """

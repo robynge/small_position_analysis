@@ -18,9 +18,11 @@ def identify_starter_positions(df):
     first_appearance = df.groupby('Bloomberg Name').first().reset_index()
 
     # Starter positions are those that first appear in weight range
+    # Exclude positions with affiliation_check == 1
     starters = first_appearance[
         (first_appearance['Weight'] >= CURRENT_RANGE['min']) &
-        (first_appearance['Weight'] < CURRENT_RANGE['max'])
+        (first_appearance['Weight'] < CURRENT_RANGE['max']) &
+        (first_appearance['affiliation_check'] == 0)
     ][['Bloomberg Name']].copy()
     starters['Type'] = 'Starter'
     
@@ -78,8 +80,9 @@ def identify_residual_positions(df):
         ticker_data = ticker_data.sort_values('Date')
         
         # Find transitions into weight range
+        # Exclude positions with affiliation_check == 1 from being considered small
         ticker_data['Was_Large'] = ticker_data['Weight'].shift(1) >= CURRENT_RANGE['max']
-        ticker_data['Is_Small'] = (ticker_data['Weight'] >= CURRENT_RANGE['min']) & (ticker_data['Weight'] < CURRENT_RANGE['max'])
+        ticker_data['Is_Small'] = (ticker_data['Weight'] >= CURRENT_RANGE['min']) & (ticker_data['Weight'] < CURRENT_RANGE['max']) & (ticker_data['affiliation_check'] == 0)
         ticker_data['Transition'] = ticker_data['Was_Large'] & ticker_data['Is_Small']
         
         transitions = ticker_data[ticker_data['Transition']]

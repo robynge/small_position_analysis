@@ -29,6 +29,7 @@ modules = {
     '2.3': ('02_3_plot_market_value', 'Plot market value charts'),
     '3': ('03_calculate_alternative_returns', 'Calculate alternative returns data'),
     '3.1': ('03_1_plot_alternative_returns', 'Plot alternative returns charts'),
+    '3.2': ('03_2_plot_distribution', 'Plot return distribution charts'),
     '4': ('04_calculate_graduation', 'Calculate graduation analysis data'),
     '4.1': ('04_1_plot_graduation', 'Plot graduation analysis charts')
 }
@@ -177,6 +178,9 @@ def run_module(module_name, description):
 
 def run_all_modules():
     """Run all analysis modules for current weight range"""
+    # Ensure directories exist
+    create_directories()
+
     weight_label = CURRENT_RANGE['label'] if CURRENT_RANGE else '<1%'
     print(f"\n{'='*60}")
     print(f"Running All Steps [{weight_label}]")
@@ -309,6 +313,7 @@ def main():
                 
                 if sub_choice == '1':
                     # Run for current range only
+                    create_directories()  # Ensure directories exist
                     module_name, description = modules[choice]
                     run_module(module_name, description)
                     print("\n✅ Module completed!")
@@ -347,6 +352,7 @@ def main():
                     
                     if sub_choice == '1':
                         # Run for current range
+                        create_directories()  # Ensure directories exist
                         for c in valid_choices:
                             module_name, description = modules[c]
                             run_module(module_name, description)

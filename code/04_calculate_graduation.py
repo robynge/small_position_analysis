@@ -27,6 +27,7 @@ def calculate_graduated_returns(etf_name):
     df['Weight_Pct'] = df['Weight']  # For compatibility
     
     # Identify graduated positions
+    # Only positions with affiliation_check == 0 can be considered small and thus graduate
     graduated_tickers = set()
     for ticker, group in df.groupby('Bloomberg Name'):
         group = group.sort_values('Date')
@@ -35,7 +36,8 @@ def calculate_graduated_returns(etf_name):
         weight_threshold = CURRENT_RANGE['max'] if CURRENT_RANGE else 1.0
         for idx in range(len(group)):
             weight = group.iloc[idx]['Weight_Pct']
-            if weight < weight_threshold:
+            affiliation = group.iloc[idx]['affiliation_check']
+            if weight < weight_threshold and affiliation == 0:
                 was_small = True
             elif was_small and weight >= weight_threshold:
                 # This ticker graduated
@@ -76,11 +78,13 @@ def calculate_graduated_returns(etf_name):
         
         # Small positions are those in weight range yesterday
         # Filter based on current weight range
+        # Exclude positions with affiliation_check == 1 from being considered small
         if CURRENT_RANGE:
-            small_positions = date_df[(date_df['Yesterday_Weight'] >= CURRENT_RANGE['min']) & 
-                                     (date_df['Yesterday_Weight'] < CURRENT_RANGE['max'])]
+            small_positions = date_df[(date_df['Yesterday_Weight'] >= CURRENT_RANGE['min']) &
+                                     (date_df['Yesterday_Weight'] < CURRENT_RANGE['max']) &
+                                     (date_df['affiliation_check'] == 0)]
         else:
-            small_positions = date_df[date_df['Yesterday_Weight'] < 1]
+            small_positions = date_df[(date_df['Yesterday_Weight'] < 1) & (date_df['affiliation_check'] == 0)]
         
         small_yesterday_value = small_positions['Yesterday_Value'].sum()
         small_today_value = small_positions['Today_Value'].sum()
@@ -172,36 +176,22 @@ def save_graduation_data(all_results, all_graduated_tickers):
         
         summary_df = pd.DataFrame(summary_data)
         summary_df.to_excel(writer, sheet_name='Summary', index=False)
-        
-        # Weekly data for each ETF
+
+        # Daily data for each ETF
         for etf in all_results.keys():
             data = all_results[etf].copy()
-            
-            # Convert to weekly
-            data['Week'] = pd.to_datetime(data['Date']).dt.to_period('W')
-            weekly = data.groupby('Week').agg({
-                'Date': 'last',
-                'Cumulative_SmallPositions': 'last',
-                'Cumulative_Graduated': 'last',
-                'Num_Small_Positions': 'mean',
-                'Num_Graduated_Large': 'mean'
-            }).reset_index()
-            
-            # Calculate weekly returns
-            weekly['Weekly_Return_Small_%'] = weekly['Cumulative_SmallPositions'].pct_change() * 100
-            weekly['Weekly_Return_Graduated_%'] = weekly['Cumulative_Graduated'].pct_change() * 100
-            weekly['Cumulative_Return_Small_%'] = (weekly['Cumulative_SmallPositions'] - 1) * 100
-            weekly['Cumulative_Return_Graduated_%'] = (weekly['Cumulative_Graduated'] - 1) * 100
-            
+
+            # Calculate cumulative returns as percentages
+            data['Cumulative_Return_Small_%'] = (data['Cumulative_SmallPositions'] - 1) * 100
+            data['Cumulative_Return_Graduated_%'] = (data['Cumulative_Graduated'] - 1) * 100
+
             # Select columns for output
-            output_data = weekly[['Week', 'Date', 
-                                 'Weekly_Return_Small_%', 'Weekly_Return_Graduated_%',
-                                 'Cumulative_Return_Small_%', 'Cumulative_Return_Graduated_%',
-                                 'Num_Small_Positions', 'Num_Graduated_Large']].copy()
-            output_data['Week'] = output_data['Week'].astype(str)
-            
+            output_data = data[['Date',
+                               'Cumulative_Return_Small_%', 'Cumulative_Return_Graduated_%',
+                               'Num_Small_Positions', 'Num_Graduated_Large']].copy()
+
             output_data.to_excel(writer, sheet_name=etf, index=False)
-        
+
         # List of graduated tickers
         graduated_list = []
         for etf, tickers in all_graduated_tickers.items():
