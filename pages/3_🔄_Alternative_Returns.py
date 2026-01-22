@@ -18,10 +18,15 @@ from utils.streamlit_config import (
 
 st.set_page_config(page_title="Alternative Returns", page_icon="🔄", layout="wide")
 
+# White style for date slider only
 st.markdown("""
 <style>
-div[data-baseweb="slider"] div[role="slider"] { background-color: #fff !important; }
-div[data-baseweb="slider"] [data-testid="stTickBar"] > div { background: #fff !important; }
+    div[data-baseweb="slider"] > div > div > div {
+        background: #ffffff !important;
+    }
+    div[data-baseweb="slider"] > div > div > div > div {
+        background-color: #ffffff !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
