@@ -83,41 +83,18 @@ st.divider()
 # ============================================================================
 st.header("Cumulative Returns Comparison")
 
-# Date range selector
-col_date1, col_date2 = st.columns(2)
-min_date = returns_df['Date'].min().date()
-max_date = returns_df['Date'].max().date()
-
-with col_date1:
-    start_date = st.date_input("Start Date", value=min_date, min_value=min_date, max_value=max_date)
-with col_date2:
-    end_date = st.date_input("End Date", value=max_date, min_value=min_date, max_value=max_date)
-
-# Filter data by date range
-mask = (returns_df['Date'].dt.date >= start_date) & (returns_df['Date'].dt.date <= end_date)
-filtered_df = returns_df[mask].copy()
-
-if filtered_df.empty:
-    st.warning("No data in selected date range.")
-    st.stop()
-
-# Recalculate cumulative returns for filtered period
-filtered_df['Cumulative_Actual'] = (1 + filtered_df['Return_Actual']).cumprod() - 1
-filtered_df['Cumulative_ExcludeSmall'] = (1 + filtered_df['Return_ExcludeSmall']).cumprod() - 1
-filtered_df['Cumulative_SmallOnly'] = (1 + filtered_df['Return_SmallOnly']).cumprod() - 1
-
 fig_cumulative = go.Figure()
 
 fig_cumulative.add_trace(go.Scatter(
-    x=filtered_df['Date'], y=filtered_df['Cumulative_Actual'] * 100,
+    x=returns_df['Date'], y=returns_df['Cumulative_Actual'] * 100,
     name='Actual (All)', line=dict(color='#3498db', width=2)
 ))
 fig_cumulative.add_trace(go.Scatter(
-    x=filtered_df['Date'], y=filtered_df['Cumulative_ExcludeSmall'] * 100,
+    x=returns_df['Date'], y=returns_df['Cumulative_ExcludeSmall'] * 100,
     name=f'Excluding {selected_range["label"]}', line=dict(color='#e74c3c', width=2, dash='dash')
 ))
 fig_cumulative.add_trace(go.Scatter(
-    x=filtered_df['Date'], y=filtered_df['Cumulative_SmallOnly'] * 100,
+    x=returns_df['Date'], y=returns_df['Cumulative_SmallOnly'] * 100,
     name=f'{selected_range["label"]} Only', line=dict(color='#2ecc71', width=2, dash='dot')
 ))
 
@@ -125,7 +102,8 @@ fig_cumulative.update_layout(
     title=f'{selected_etf} - Cumulative Returns Comparison',
     xaxis_title='Date', yaxis_title='Cumulative Return (%)',
     hovermode='x unified',
-    legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1)
+    legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
+    xaxis=dict(rangeslider=dict(visible=True, thickness=0.05))
 )
 
 st.plotly_chart(fig_cumulative, use_container_width=True)
