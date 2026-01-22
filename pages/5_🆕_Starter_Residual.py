@@ -38,7 +38,7 @@ st.divider()
 
 # Calculate starter/residual data
 with st.spinner("Analyzing position entries..."):
-    summary, starters_df, residuals_df = calculate_starter_residual(selected_etf, selected_range)
+    summary, starters_df, residuals_df, reappeared_df = calculate_starter_residual(selected_etf, selected_range)
 
 if not summary:
     st.warning("No data available for the selected ETF and weight range.")
@@ -313,7 +313,7 @@ st.divider()
 # ============================================================================
 st.header("Detailed Data")
 
-tab1, tab2, tab3 = st.tabs(["Summary", "Starters", "Residuals"])
+tab1, tab2, tab3, tab4 = st.tabs(["Summary", "Starters", "Residuals", "Reappeared"])
 
 with tab1:
     st.subheader("Summary Statistics")
@@ -369,6 +369,31 @@ with tab3:
     else:
         st.info("No residual positions found")
 
+with tab4:
+    st.subheader("Reappeared Positions")
+    st.markdown("Positions that exited and later re-entered the weight range.")
+    if not reappeared_df.empty:
+        st.dataframe(
+            reappeared_df.style.format({
+                'Re_entry_Weight': '{:.2f}%'
+            }),
+            use_container_width=True,
+            height=400
+        )
+
+        # Summary metrics for reappeared
+        col_a, col_b, col_c = st.columns(3)
+        with col_a:
+            st.metric("Total Reappeared", len(reappeared_df))
+        with col_b:
+            avg_days = reappeared_df['Days_Absent'].mean() if 'Days_Absent' in reappeared_df.columns else 0
+            st.metric("Avg Days Absent", f"{avg_days:.0f}")
+        with col_c:
+            avg_weight = reappeared_df['Re_entry_Weight'].mean() if 'Re_entry_Weight' in reappeared_df.columns else 0
+            st.metric("Avg Re-entry Weight", f"{avg_weight:.2f}%")
+    else:
+        st.info("No reappeared positions found")
+
 st.divider()
 
 # ============================================================================
@@ -382,7 +407,8 @@ with col1:
     sheets = {
         'Summary': pd.DataFrame([summary]),
         'Starters': starters_df if not starters_df.empty else pd.DataFrame(),
-        'Residuals': residuals_df if not residuals_df.empty else pd.DataFrame()
+        'Residuals': residuals_df if not residuals_df.empty else pd.DataFrame(),
+        'Reappeared': reappeared_df if not reappeared_df.empty else pd.DataFrame()
     }
 
     excel_data = create_multi_sheet_excel(sheets, 'starter_residual.xlsx')
