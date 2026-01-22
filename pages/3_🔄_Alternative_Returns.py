@@ -88,6 +88,9 @@ st.header("Cumulative Returns Comparison")
 min_date = returns_df['Date'].min().date()
 max_date = returns_df['Date'].max().date()
 
+# Change red accent color to white for slider
+st.markdown('<style>[data-testid="stSlider"] [style*="rgb(255, 75, 75)"] { color: white !important; }</style>', unsafe_allow_html=True)
+
 date_range = st.slider(
     "Select Date Range",
     min_value=min_date,
