@@ -66,7 +66,8 @@ for i, label in enumerate(range_labels):
             y=plot_counts[label],
             name=label,
             mode='lines',
-            line=dict(color=colors[i % len(colors)], width=2)
+            line=dict(color=colors[i % len(colors)], width=2),
+            hovertemplate='%{x}<br>' + label + ': %{y:.2f}<extra></extra>'
         ))
 
 fig_counts.update_layout(
@@ -105,6 +106,7 @@ with col1:
         color_discrete_sequence=colors
     )
     fig_bar.update_layout(showlegend=False)
+    fig_bar.update_traces(hovertemplate='%{x}<br>Count: %{y:.2f}<extra></extra>')
     st.plotly_chart(fig_bar, use_container_width=True)
 
 with col2:
@@ -157,7 +159,8 @@ if not market_value.empty:
             y=plot_mv['Range_MV'],
             name='Market Value',
             fill='tozeroy',
-            line=dict(color='#3498db', width=2)
+            line=dict(color='#3498db', width=2),
+            hovertemplate='%{x}<br>MV: $%{y:,.2f}<extra></extra>'
         ),
         secondary_y=False
     )
@@ -167,7 +170,8 @@ if not market_value.empty:
             x=plot_mv['Date'],
             y=plot_mv['Pct_of_AUM'],
             name='% of AUM',
-            line=dict(color='#e74c3c', width=2, dash='dot')
+            line=dict(color='#e74c3c', width=2, dash='dot'),
+            hovertemplate='%{x}<br>% of AUM: %{y:.2f}%<extra></extra>'
         ),
         secondary_y=True
     )
@@ -212,7 +216,8 @@ if not mv_by_range.empty:
                 name=wr['label'],
                 stackgroup='one',
                 fillcolor=colors[i % len(colors)],
-                line=dict(width=0.5, color=colors[i % len(colors)])
+                line=dict(width=0.5, color=colors[i % len(colors)]),
+                hovertemplate='%{x}<br>' + wr['label'] + ': %{y:.2f}%<extra></extra>'
             ))
 
     fig_stacked.update_layout(
@@ -237,7 +242,8 @@ if not mv_by_range.empty:
                 y=plot_mv_range[mv_col],
                 name=wr['label'],
                 mode='lines',
-                line=dict(color=colors[i % len(colors)], width=2)
+                line=dict(color=colors[i % len(colors)], width=2),
+                hovertemplate='%{x}<br>' + wr['label'] + ': $%{y:,.2f}<extra></extra>'
             ))
 
     fig_mv_range.update_layout(

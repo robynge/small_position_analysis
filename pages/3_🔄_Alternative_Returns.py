@@ -93,15 +93,18 @@ fig_cumulative = go.Figure()
 
 fig_cumulative.add_trace(go.Scatter(
     x=plot_df['Date'], y=plot_df['Cumulative_Actual'] * 100,
-    name='Actual (All)', line=dict(color='#3498db', width=2)
+    name='Actual (All)', line=dict(color='#3498db', width=2),
+    hovertemplate='%{x}<br>Actual: %{y:.2f}%<extra></extra>'
 ))
 fig_cumulative.add_trace(go.Scatter(
     x=plot_df['Date'], y=plot_df['Cumulative_ExcludeSmall'] * 100,
-    name=f'Excluding {selected_range["label"]}', line=dict(color='#e74c3c', width=2, dash='dash')
+    name=f'Excluding {selected_range["label"]}', line=dict(color='#e74c3c', width=2, dash='dash'),
+    hovertemplate='%{x}<br>Excl. Small: %{y:.2f}%<extra></extra>'
 ))
 fig_cumulative.add_trace(go.Scatter(
     x=plot_df['Date'], y=plot_df['Cumulative_SmallOnly'] * 100,
-    name=f'{selected_range["label"]} Only', line=dict(color='#2ecc71', width=2, dash='dot')
+    name=f'{selected_range["label"]} Only', line=dict(color='#2ecc71', width=2, dash='dot'),
+    hovertemplate='%{x}<br>Small Only: %{y:.2f}%<extra></extra>'
 ))
 
 fig_cumulative.update_layout(
@@ -127,7 +130,8 @@ with col1:
     diff_values = (returns_df['Return_Actual'] - returns_df['Return_ExcludeSmall']) * 100
     fig_diff.add_trace(go.Bar(
         x=returns_df['Date'], y=diff_values,
-        name='Difference', marker_color=diff_values.apply(lambda x: '#2ecc71' if x >= 0 else '#e74c3c')
+        name='Difference', marker_color=diff_values.apply(lambda x: '#2ecc71' if x >= 0 else '#e74c3c'),
+        hovertemplate='%{x}<br>Diff: %{y:.2f}%<extra></extra>'
     ))
     fig_diff.update_layout(title='Daily Difference (Actual - Exclude)', yaxis_title='%')
     st.plotly_chart(fig_diff, use_container_width=True)
@@ -137,7 +141,8 @@ with col2:
     small_values = returns_df['Return_SmallOnly'] * 100
     fig_small.add_trace(go.Bar(
         x=returns_df['Date'], y=small_values,
-        name='Small Only', marker_color=small_values.apply(lambda x: '#2ecc71' if x >= 0 else '#e74c3c')
+        name='Small Only', marker_color=small_values.apply(lambda x: '#2ecc71' if x >= 0 else '#e74c3c'),
+        hovertemplate='%{x}<br>Return: %{y:.2f}%<extra></extra>'
     ))
     fig_small.update_layout(title=f'{selected_range["label"]} Only Daily Returns', yaxis_title='%')
     st.plotly_chart(fig_small, use_container_width=True)
@@ -153,17 +158,23 @@ col1, col2 = st.columns(2)
 
 with col1:
     fig_hist = go.Figure()
-    fig_hist.add_trace(go.Histogram(x=returns_df['Return_Actual'] * 100, name='Actual', opacity=0.6, marker_color='#3498db', nbinsx=50))
-    fig_hist.add_trace(go.Histogram(x=returns_df['Return_ExcludeSmall'] * 100, name='Excl. Small', opacity=0.6, marker_color='#e74c3c', nbinsx=50))
-    fig_hist.add_trace(go.Histogram(x=returns_df['Return_SmallOnly'] * 100, name='Small Only', opacity=0.6, marker_color='#2ecc71', nbinsx=50))
+    fig_hist.add_trace(go.Histogram(x=returns_df['Return_Actual'] * 100, name='Actual', opacity=0.6, marker_color='#3498db', nbinsx=50,
+                                     hovertemplate='Return: %{x:.2f}%<br>Count: %{y}<extra></extra>'))
+    fig_hist.add_trace(go.Histogram(x=returns_df['Return_ExcludeSmall'] * 100, name='Excl. Small', opacity=0.6, marker_color='#e74c3c', nbinsx=50,
+                                     hovertemplate='Return: %{x:.2f}%<br>Count: %{y}<extra></extra>'))
+    fig_hist.add_trace(go.Histogram(x=returns_df['Return_SmallOnly'] * 100, name='Small Only', opacity=0.6, marker_color='#2ecc71', nbinsx=50,
+                                     hovertemplate='Return: %{x:.2f}%<br>Count: %{y}<extra></extra>'))
     fig_hist.update_layout(title='Daily Return Distribution', barmode='overlay', xaxis_title='Return (%)')
     st.plotly_chart(fig_hist, use_container_width=True)
 
 with col2:
     fig_box = go.Figure()
-    fig_box.add_trace(go.Box(y=returns_df['Return_Actual'] * 100, name='Actual', marker_color='#3498db'))
-    fig_box.add_trace(go.Box(y=returns_df['Return_ExcludeSmall'] * 100, name='Excl. Small', marker_color='#e74c3c'))
-    fig_box.add_trace(go.Box(y=returns_df['Return_SmallOnly'] * 100, name='Small Only', marker_color='#2ecc71'))
+    fig_box.add_trace(go.Box(y=returns_df['Return_Actual'] * 100, name='Actual', marker_color='#3498db',
+                              hovertemplate='%{y:.2f}%<extra></extra>'))
+    fig_box.add_trace(go.Box(y=returns_df['Return_ExcludeSmall'] * 100, name='Excl. Small', marker_color='#e74c3c',
+                              hovertemplate='%{y:.2f}%<extra></extra>'))
+    fig_box.add_trace(go.Box(y=returns_df['Return_SmallOnly'] * 100, name='Small Only', marker_color='#2ecc71',
+                              hovertemplate='%{y:.2f}%<extra></extra>'))
     fig_box.update_layout(title='Box Plot Comparison', yaxis_title='Return (%)')
     st.plotly_chart(fig_box, use_container_width=True)
 

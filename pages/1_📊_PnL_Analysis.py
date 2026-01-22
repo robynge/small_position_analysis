@@ -83,7 +83,8 @@ fig_line.add_trace(
         y=plot_df['Adj_PnL'],
         name='Daily P&L',
         marker_color=plot_df['Adj_PnL'].apply(lambda x: '#2ecc71' if x >= 0 else '#e74c3c'),
-        opacity=0.6
+        opacity=0.6,
+        hovertemplate='%{x}<br>Daily P&L: $%{y:,.2f}<extra></extra>'
     ),
     secondary_y=False
 )
@@ -95,7 +96,8 @@ fig_line.add_trace(
         y=plot_df['Cumulative_PnL'],
         name='Cumulative P&L',
         line=dict(color='#3498db', width=2),
-        mode='lines'
+        mode='lines',
+        hovertemplate='%{x}<br>Cumulative P&L: $%{y:,.2f}<extra></extra>'
     ),
     secondary_y=True
 )
@@ -137,7 +139,8 @@ with col1:
             title='Top 10 Positive Contributors',
             color_discrete_sequence=px.colors.sequential.Greens_r
         )
-        fig_pie_pos.update_traces(textposition='inside', textinfo='percent+label')
+        fig_pie_pos.update_traces(textposition='inside', textinfo='percent+label',
+                                   hovertemplate='%{label}<br>$%{value:,.2f}<br>%{percent:.2%}<extra></extra>')
         st.plotly_chart(fig_pie_pos, use_container_width=True)
     else:
         st.info("No positive P&L contributors found.")
@@ -160,7 +163,8 @@ with col2:
             title='Top 10 Negative Contributors (by absolute value)',
             color_discrete_sequence=px.colors.sequential.Reds_r
         )
-        fig_pie_neg.update_traces(textposition='inside', textinfo='percent+label')
+        fig_pie_neg.update_traces(textposition='inside', textinfo='percent+label',
+                                   hovertemplate='%{label}<br>$%{value:,.2f}<br>%{percent:.2%}<extra></extra>')
         st.plotly_chart(fig_pie_neg, use_container_width=True)
     else:
         st.info("No negative P&L contributors found.")
@@ -183,6 +187,7 @@ fig_bar = px.bar(
     color_continuous_midpoint=0
 )
 fig_bar.update_layout(xaxis_tickangle=-45)
+fig_bar.update_traces(hovertemplate='%{x}<br>P&L: $%{y:,.2f}<extra></extra>')
 st.plotly_chart(fig_bar, use_container_width=True)
 
 st.divider()

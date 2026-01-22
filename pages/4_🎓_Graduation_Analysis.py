@@ -89,6 +89,7 @@ with col1:
     })
     fig_pnl = px.bar(pnl_data, x='Period', y='Total P&L', title='Total P&L by Period',
                      color='Period', color_discrete_sequence=['#3498db', '#2ecc71'])
+    fig_pnl.update_traces(hovertemplate='%{x}<br>P&L: $%{y:,.2f}<extra></extra>')
     st.plotly_chart(fig_pnl, use_container_width=True)
 
 with col2:
@@ -98,8 +99,10 @@ with col2:
         'Median Return (%)': [summary_row['Median_Return_Before_%'], summary_row['Median_Return_After_%']]
     })
     fig_return = go.Figure()
-    fig_return.add_trace(go.Bar(name='Mean', x=return_data['Period'], y=return_data['Mean Return (%)'], marker_color='#3498db'))
-    fig_return.add_trace(go.Bar(name='Median', x=return_data['Period'], y=return_data['Median Return (%)'], marker_color='#2ecc71'))
+    fig_return.add_trace(go.Bar(name='Mean', x=return_data['Period'], y=return_data['Mean Return (%)'], marker_color='#3498db',
+                                 hovertemplate='%{x}<br>Mean: %{y:.2f}%<extra></extra>'))
+    fig_return.add_trace(go.Bar(name='Median', x=return_data['Period'], y=return_data['Median Return (%)'], marker_color='#2ecc71',
+                                 hovertemplate='%{x}<br>Median: %{y:.2f}%<extra></extra>'))
     fig_return.update_layout(title='Return Statistics by Period', barmode='group', yaxis_title='Return (%)')
     st.plotly_chart(fig_return, use_container_width=True)
 
@@ -119,18 +122,22 @@ if not returns_df.empty:
     with col1:
         fig_hist = go.Figure()
         if len(before_returns) > 0:
-            fig_hist.add_trace(go.Histogram(x=before_returns, name='Before (<1%)', opacity=0.7, marker_color='#3498db', nbinsx=50))
+            fig_hist.add_trace(go.Histogram(x=before_returns, name='Before (<1%)', opacity=0.7, marker_color='#3498db', nbinsx=50,
+                                             hovertemplate='Return: %{x:.2f}%<br>Count: %{y}<extra></extra>'))
         if len(after_returns) > 0:
-            fig_hist.add_trace(go.Histogram(x=after_returns, name='After (>=1%)', opacity=0.7, marker_color='#2ecc71', nbinsx=50))
+            fig_hist.add_trace(go.Histogram(x=after_returns, name='After (>=1%)', opacity=0.7, marker_color='#2ecc71', nbinsx=50,
+                                             hovertemplate='Return: %{x:.2f}%<br>Count: %{y}<extra></extra>'))
         fig_hist.update_layout(title='Daily Return Distribution', barmode='overlay', xaxis_title='Return (%)')
         st.plotly_chart(fig_hist, use_container_width=True)
 
     with col2:
         fig_box = go.Figure()
         if len(before_returns) > 0:
-            fig_box.add_trace(go.Box(y=before_returns, name='Before (<1%)', marker_color='#3498db'))
+            fig_box.add_trace(go.Box(y=before_returns, name='Before (<1%)', marker_color='#3498db',
+                                      hovertemplate='%{y:.2f}%<extra></extra>'))
         if len(after_returns) > 0:
-            fig_box.add_trace(go.Box(y=after_returns, name='After (>=1%)', marker_color='#2ecc71'))
+            fig_box.add_trace(go.Box(y=after_returns, name='After (>=1%)', marker_color='#2ecc71',
+                                      hovertemplate='%{y:.2f}%<extra></extra>'))
         fig_box.update_layout(title='Return Box Plot', yaxis_title='Return (%)')
         st.plotly_chart(fig_box, use_container_width=True)
 

@@ -92,6 +92,7 @@ with col1:
                 'Still Small': '#95a5a6'
             }
         )
+        fig_starter.update_traces(hovertemplate='%{label}<br>Count: %{value:.2f}<br>%{percent:.2%}<extra></extra>')
         st.plotly_chart(fig_starter, use_container_width=True)
 
         # Metrics
@@ -126,6 +127,7 @@ with col2:
                 'Still Small': '#95a5a6'
             }
         )
+        fig_residual.update_traces(hovertemplate='%{label}<br>Count: %{value:.2f}<br>%{percent:.2%}<extra></extra>')
         st.plotly_chart(fig_residual, use_container_width=True)
 
         # Metrics
@@ -166,21 +168,24 @@ with col1:
         name='Total',
         x=comparison_data['Category'],
         y=comparison_data['Total'],
-        marker_color='#3498db'
+        marker_color='#3498db',
+        hovertemplate='%{x}<br>Total: %{y:.2f}<extra></extra>'
     ))
 
     fig_compare.add_trace(go.Bar(
         name='Graduated',
         x=comparison_data['Category'],
         y=comparison_data['Graduated'],
-        marker_color='#2ecc71'
+        marker_color='#2ecc71',
+        hovertemplate='%{x}<br>Graduated: %{y:.2f}<extra></extra>'
     ))
 
     fig_compare.add_trace(go.Bar(
         name='Dropped',
         x=comparison_data['Category'],
         y=comparison_data['Dropped'],
-        marker_color='#e74c3c'
+        marker_color='#e74c3c',
+        hovertemplate='%{x}<br>Dropped: %{y:.2f}<extra></extra>'
     ))
 
     fig_compare.update_layout(
@@ -203,6 +208,7 @@ with col2:
         color_discrete_sequence=['#3498db', '#e74c3c']
     )
     fig_rate.update_layout(showlegend=False)
+    fig_rate.update_traces(hovertemplate='%{x}<br>Rate: %{y:.2f}%<extra></extra>')
     st.plotly_chart(fig_rate, use_container_width=True)
 
 st.divider()
@@ -228,6 +234,7 @@ with col1:
             },
             nbins=30
         )
+        fig_starter_days.update_traces(hovertemplate='Days: %{x:.2f}<br>Count: %{y}<extra></extra>')
         st.plotly_chart(fig_starter_days, use_container_width=True)
 
         # Average days by outcome
@@ -252,6 +259,7 @@ with col2:
             },
             nbins=30
         )
+        fig_residual_days.update_traces(hovertemplate='Days: %{x:.2f}<br>Count: %{y}<extra></extra>')
         st.plotly_chart(fig_residual_days, use_container_width=True)
 
         # Average days by outcome
@@ -308,6 +316,7 @@ if not starters_df.empty or not residuals_df.empty:
         title='Position Entry Timeline',
         color_discrete_map={'Starter': '#3498db', 'Residual': '#e74c3c'}
     )
+    fig_timeline.update_traces(hovertemplate='%{hovertext}<br>Date: %{x}<br>Weight: %{y:.2f}%<extra></extra>')
 
     fig_timeline.update_layout(
         xaxis_title='Entry Date',
