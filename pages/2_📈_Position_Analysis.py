@@ -10,8 +10,8 @@ from plotly.subplots import make_subplots
 from pathlib import Path
 import sys
 
-# Add utils to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add code directory to path
+sys.path.insert(0, str(Path(__file__).parent.parent / "code"))
 from utils.streamlit_config import (
     render_sidebar, calculate_position_counts, calculate_market_value,
     calculate_market_value_by_range, format_currency, WEIGHT_RANGES,

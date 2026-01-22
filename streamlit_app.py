@@ -9,8 +9,10 @@ import plotly.graph_objects as go
 from pathlib import Path
 import sys
 
-# Add utils to path
-sys.path.insert(0, str(Path(__file__).parent))
+# Add code directory to path for imports
+CODE_DIR = Path(__file__).parent / "code"
+sys.path.insert(0, str(CODE_DIR))
+
 from utils.streamlit_config import (
     render_sidebar, load_etf_data, get_selected_etf,
     get_selected_range, WEIGHT_RANGES, format_currency,

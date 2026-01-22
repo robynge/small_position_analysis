@@ -9,8 +9,8 @@ import plotly.graph_objects as go
 from pathlib import Path
 import sys
 
-# Add utils to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add code directory to path
+sys.path.insert(0, str(Path(__file__).parent.parent / "code"))
 from utils.streamlit_config import (
     render_sidebar, calculate_starter_residual,
     create_excel_download, create_multi_sheet_excel
