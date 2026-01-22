@@ -27,7 +27,10 @@ st.markdown("""
     div[data-baseweb="slider"] > div > div > div > div {
         background-color: #ffffff !important;
     }
-    div[data-testid="stThumbValue"] {
+    [data-testid="stSlider"] > div > div > div > div:last-child {
+        color: #ffffff !important;
+    }
+    [data-baseweb="slider"] + div {
         color: #ffffff !important;
     }
 </style>
