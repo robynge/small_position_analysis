@@ -27,17 +27,7 @@ st.markdown("""
     div[data-baseweb="slider"] > div > div > div > div {
         background-color: #ffffff !important;
     }
-    div[data-baseweb="slider"] div[data-testid="stTickBarMin"],
-    div[data-baseweb="slider"] div[data-testid="stTickBarMax"] {
-        color: #ffffff !important;
-    }
-    .stSlider > div > div > div > div > div {
-        color: #ffffff !important;
-    }
-    .stSlider [data-baseweb="slider"] + div {
-        color: #ffffff !important;
-    }
-    .stSlider p, .stSlider span, .stSlider div {
+    div[data-testid="stTickBarMin"], div[data-testid="stTickBarMax"] {
         color: #ffffff !important;
     }
 </style>
