@@ -88,16 +88,10 @@ st.header("Cumulative Returns Comparison")
 min_date = returns_df['Date'].min().date()
 max_date = returns_df['Date'].max().date()
 
-# Override slider colors
+# Override slider date text color only
 st.markdown("""
 <style>
-    [data-testid="stSlider"] {
-        --primary-color: #ffffff;
-    }
-    [data-testid="stSlider"] div[role="slider"] {
-        background-color: #ffffff !important;
-    }
-    [data-testid="stSlider"] div[data-baseweb="slider"] div {
+    [data-testid="stSlider"] > div > div > div > div:last-child > div {
         color: #ffffff !important;
     }
 </style>
