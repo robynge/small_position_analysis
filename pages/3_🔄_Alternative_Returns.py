@@ -27,7 +27,7 @@ st.markdown("""
     div[data-baseweb="slider"] > div > div > div > div {
         background-color: #ffffff !important;
     }
-    div[data-testid="stTickBarMin"], div[data-testid="stTickBarMax"] {
+    div[data-testid="stThumbValue"] {
         color: #ffffff !important;
     }
 </style>
