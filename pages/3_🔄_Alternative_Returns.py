@@ -18,23 +18,6 @@ from utils.streamlit_config import (
 
 st.set_page_config(page_title="Alternative Returns", page_icon="🔄", layout="wide")
 
-# Custom CSS for white slider
-st.markdown("""
-<style>
-    /* Slider track and thumb */
-    div[data-baseweb="slider"] > div > div > div {
-        background: linear-gradient(to right, #ffffff 0%, #ffffff 100%) !important;
-    }
-    div[data-baseweb="slider"] > div > div > div > div {
-        background-color: #ffffff !important;
-    }
-    /* Slider text */
-    div[data-baseweb="slider"] > div:first-child {
-        color: #ffffff !important;
-    }
-</style>
-""", unsafe_allow_html=True)
-
 selected_etf, selected_range = render_sidebar()
 
 st.title("🔄 Alternative Returns Analysis")
