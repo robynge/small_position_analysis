@@ -27,6 +27,12 @@ st.markdown("""
     div[data-baseweb="slider"] > div > div > div > div {
         background-color: #ffffff !important;
     }
+    div[data-baseweb="slider"] > div > div:first-child > div {
+        color: #ffffff !important;
+    }
+    div[data-baseweb="slider"] > div > div:last-child > div {
+        color: #ffffff !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
