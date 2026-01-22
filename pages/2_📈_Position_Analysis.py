@@ -47,17 +47,23 @@ if position_counts.empty:
 # ============================================================================
 st.header("Position Counts by Weight Range")
 
-# Position count over time
+# Date range slider
+date_range_pos = st.slider("Date Range", min_value=position_counts['Date'].min().to_pydatetime(),
+                           max_value=position_counts['Date'].max().to_pydatetime(),
+                           value=(position_counts['Date'].min().to_pydatetime(), position_counts['Date'].max().to_pydatetime()),
+                           key="position_date_range")
+plot_counts = position_counts[(position_counts['Date'] >= date_range_pos[0]) & (position_counts['Date'] <= date_range_pos[1])]
+
 fig_counts = go.Figure()
 
 range_labels = [wr['label'] for wr in WEIGHT_RANGES]
 colors = px.colors.qualitative.Set2
 
 for i, label in enumerate(range_labels):
-    if label in position_counts.columns:
+    if label in plot_counts.columns:
         fig_counts.add_trace(go.Scatter(
-            x=position_counts['Date'],
-            y=position_counts[label],
+            x=plot_counts['Date'],
+            y=plot_counts[label],
             name=label,
             mode='lines',
             line=dict(color=colors[i % len(colors)], width=2)
@@ -137,12 +143,18 @@ if not market_value.empty:
         st.metric("MV Change", format_currency(mv_change))
 
     # Market Value trend chart
+    date_range_mv = st.slider("Date Range", min_value=market_value['Date'].min().to_pydatetime(),
+                              max_value=market_value['Date'].max().to_pydatetime(),
+                              value=(market_value['Date'].min().to_pydatetime(), market_value['Date'].max().to_pydatetime()),
+                              key="mv_date_range")
+    plot_mv = market_value[(market_value['Date'] >= date_range_mv[0]) & (market_value['Date'] <= date_range_mv[1])]
+
     fig_mv = make_subplots(specs=[[{"secondary_y": True}]])
 
     fig_mv.add_trace(
         go.Scatter(
-            x=market_value['Date'],
-            y=market_value['Range_MV'],
+            x=plot_mv['Date'],
+            y=plot_mv['Range_MV'],
             name='Market Value',
             fill='tozeroy',
             line=dict(color='#3498db', width=2)
@@ -152,8 +164,8 @@ if not market_value.empty:
 
     fig_mv.add_trace(
         go.Scatter(
-            x=market_value['Date'],
-            y=market_value['Pct_of_AUM'],
+            x=plot_mv['Date'],
+            y=plot_mv['Pct_of_AUM'],
             name='% of AUM',
             line=dict(color='#e74c3c', width=2, dash='dot')
         ),
@@ -181,15 +193,22 @@ st.divider()
 st.header("Market Value Distribution Across Ranges")
 
 if not mv_by_range.empty:
+    # Date range slider for distribution charts
+    date_range_dist = st.slider("Date Range", min_value=mv_by_range['Date'].min().to_pydatetime(),
+                                max_value=mv_by_range['Date'].max().to_pydatetime(),
+                                value=(mv_by_range['Date'].min().to_pydatetime(), mv_by_range['Date'].max().to_pydatetime()),
+                                key="dist_date_range")
+    plot_mv_range = mv_by_range[(mv_by_range['Date'] >= date_range_dist[0]) & (mv_by_range['Date'] <= date_range_dist[1])]
+
     # Stacked area chart
     fig_stacked = go.Figure()
 
     for i, wr in enumerate(WEIGHT_RANGES):
         pct_col = f'{wr["label"]}_Pct'
-        if pct_col in mv_by_range.columns:
+        if pct_col in plot_mv_range.columns:
             fig_stacked.add_trace(go.Scatter(
-                x=mv_by_range['Date'],
-                y=mv_by_range[pct_col],
+                x=plot_mv_range['Date'],
+                y=plot_mv_range[pct_col],
                 name=wr['label'],
                 stackgroup='one',
                 fillcolor=colors[i % len(colors)],
@@ -212,10 +231,10 @@ if not mv_by_range.empty:
 
     for i, wr in enumerate(WEIGHT_RANGES):
         mv_col = f'{wr["label"]}_MV'
-        if mv_col in mv_by_range.columns:
+        if mv_col in plot_mv_range.columns:
             fig_mv_range.add_trace(go.Scatter(
-                x=mv_by_range['Date'],
-                y=mv_by_range[mv_col],
+                x=plot_mv_range['Date'],
+                y=plot_mv_range[mv_col],
                 name=wr['label'],
                 mode='lines',
                 line=dict(color=colors[i % len(colors)], width=2)

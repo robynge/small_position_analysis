@@ -67,15 +67,22 @@ st.divider()
 # P&L Line Chart
 st.subheader("P&L Trend")
 
+# Date range slider
+date_range = st.slider("Date Range", min_value=daily_pnl['Date'].min().to_pydatetime(),
+                       max_value=daily_pnl['Date'].max().to_pydatetime(),
+                       value=(daily_pnl['Date'].min().to_pydatetime(), daily_pnl['Date'].max().to_pydatetime()),
+                       key="pnl_date_range")
+plot_df = daily_pnl[(daily_pnl['Date'] >= date_range[0]) & (daily_pnl['Date'] <= date_range[1])]
+
 fig_line = make_subplots(specs=[[{"secondary_y": True}]])
 
 # Daily P&L bars
 fig_line.add_trace(
     go.Bar(
-        x=daily_pnl['Date'],
-        y=daily_pnl['Adj_PnL'],
+        x=plot_df['Date'],
+        y=plot_df['Adj_PnL'],
         name='Daily P&L',
-        marker_color=daily_pnl['Adj_PnL'].apply(lambda x: '#2ecc71' if x >= 0 else '#e74c3c'),
+        marker_color=plot_df['Adj_PnL'].apply(lambda x: '#2ecc71' if x >= 0 else '#e74c3c'),
         opacity=0.6
     ),
     secondary_y=False
@@ -84,8 +91,8 @@ fig_line.add_trace(
 # Cumulative P&L line
 fig_line.add_trace(
     go.Scatter(
-        x=daily_pnl['Date'],
-        y=daily_pnl['Cumulative_PnL'],
+        x=plot_df['Date'],
+        y=plot_df['Cumulative_PnL'],
         name='Cumulative P&L',
         line=dict(color='#3498db', width=2),
         mode='lines'

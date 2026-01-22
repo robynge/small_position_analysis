@@ -286,9 +286,19 @@ if not starters_df.empty or not residuals_df.empty:
     combined_df = pd.concat(all_entries, ignore_index=True)
     combined_df = combined_df.sort_values('Entry_Date')
 
+    # Date range slider
+    min_date = pd.to_datetime(combined_df['Entry_Date'].min())
+    max_date = pd.to_datetime(combined_df['Entry_Date'].max())
+    date_range = st.slider("Date Range", min_value=min_date.to_pydatetime(),
+                           max_value=max_date.to_pydatetime(),
+                           value=(min_date.to_pydatetime(), max_date.to_pydatetime()),
+                           key="timeline_date_range")
+    plot_df = combined_df[(pd.to_datetime(combined_df['Entry_Date']) >= date_range[0]) &
+                          (pd.to_datetime(combined_df['Entry_Date']) <= date_range[1])]
+
     # Timeline scatter
     fig_timeline = px.scatter(
-        combined_df,
+        plot_df,
         x='Entry_Date',
         y='Entry_Weight',
         color='Type',
