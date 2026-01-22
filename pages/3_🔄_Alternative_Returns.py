@@ -18,6 +18,13 @@ from utils.streamlit_config import (
 
 st.set_page_config(page_title="Alternative Returns", page_icon="🔄", layout="wide")
 
+st.markdown("""
+<style>
+div[data-baseweb="slider"] div[role="slider"] { background-color: #fff !important; }
+div[data-baseweb="slider"] [data-testid="stTickBar"] > div { background: #fff !important; }
+</style>
+""", unsafe_allow_html=True)
+
 selected_etf, selected_range = render_sidebar()
 
 st.title("🔄 Alternative Returns Analysis")
