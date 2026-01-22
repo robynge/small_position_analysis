@@ -18,7 +18,6 @@ from utils.streamlit_config import (
 
 st.set_page_config(page_title="Alternative Returns", page_icon="🔄", layout="wide")
 
-
 selected_etf, selected_range = render_sidebar()
 
 st.title("🔄 Alternative Returns Analysis")
@@ -85,23 +84,22 @@ st.divider()
 st.header("Cumulative Returns Comparison")
 
 # Date range selector
+col_date1, col_date2 = st.columns(2)
 min_date = returns_df['Date'].min().date()
 max_date = returns_df['Date'].max().date()
 
-# Change red accent color to white for slider
-st.markdown('<style>[data-testid="stSlider"] [style*="rgb(255, 75, 75)"] { color: white !important; }</style>', unsafe_allow_html=True)
+with col_date1:
+    start_date = st.date_input("Start Date", value=min_date, min_value=min_date, max_value=max_date)
+with col_date2:
+    end_date = st.date_input("End Date", value=max_date, min_value=min_date, max_value=max_date)
 
-date_range = st.slider(
-    "Select Date Range",
-    min_value=min_date,
-    max_value=max_date,
-    value=(min_date, max_date),
-    format="YYYY-MM-DD"
-)
-
-# Filter data by selected date range
-mask = (returns_df['Date'].dt.date >= date_range[0]) & (returns_df['Date'].dt.date <= date_range[1])
+# Filter data by date range
+mask = (returns_df['Date'].dt.date >= start_date) & (returns_df['Date'].dt.date <= end_date)
 filtered_df = returns_df[mask].copy()
+
+if filtered_df.empty:
+    st.warning("No data in selected date range.")
+    st.stop()
 
 # Recalculate cumulative returns for filtered period
 filtered_df['Cumulative_Actual'] = (1 + filtered_df['Return_Actual']).cumprod() - 1
