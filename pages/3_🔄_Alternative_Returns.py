@@ -88,25 +88,6 @@ st.header("Cumulative Returns Comparison")
 min_date = returns_df['Date'].min().date()
 max_date = returns_df['Date'].max().date()
 
-# Override slider colors
-st.markdown("""
-<style>
-    /* Slider track */
-    [data-baseweb="slider"] > div:first-child > div {
-        background: #ffffff !important;
-    }
-    /* Slider thumb */
-    [data-baseweb="slider"] > div:first-child > div > div {
-        background-color: #ffffff !important;
-    }
-    /* Date value text - target only immediate children */
-    [data-baseweb="slider"] > div:nth-child(2) > div,
-    [data-baseweb="slider"] > div:nth-child(3) > div {
-        color: #ffffff !important;
-    }
-</style>
-""", unsafe_allow_html=True)
-
 date_range = st.slider(
     "Select Date Range",
     min_value=min_date,
