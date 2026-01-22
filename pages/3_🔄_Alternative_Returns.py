@@ -102,7 +102,11 @@ fig_cumulative.update_layout(
     title=f'{selected_etf} - Cumulative Returns Comparison',
     xaxis_title='Date', yaxis_title='Cumulative Return (%)',
     hovermode='x unified',
-    legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1)
+    legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
+    xaxis=dict(
+        rangeslider=dict(visible=True),
+        type='date'
+    )
 )
 
 st.plotly_chart(fig_cumulative, use_container_width=True)
