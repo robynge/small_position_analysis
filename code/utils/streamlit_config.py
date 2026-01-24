@@ -73,12 +73,11 @@ def load_etf_data(etf_name: str) -> pd.DataFrame:
     mv_col = f'{etf_name}_MV'
     weight_col = f'{etf_name}_Weight'
 
-    df = consolidated_df[['Date', 'Bloomberg Name', position_col, mv_col, weight_col, 'affiliation check']].copy()
+    df = consolidated_df[['Date', 'Bloomberg Name', position_col, mv_col, weight_col]].copy()
     df.rename(columns={
         position_col: 'Position',
         mv_col: 'MV',
-        weight_col: 'Weight',
-        'affiliation check': 'affiliation_check'
+        weight_col: 'Weight'
     }, inplace=True)
 
     df['Stock_Price'] = np.where(df['Position'] > 0, df['MV'] / df['Position'], np.nan)
@@ -95,15 +94,12 @@ def load_etf_data(etf_name: str) -> pd.DataFrame:
 
     return df
 
-def filter_by_weight_range(df: pd.DataFrame, weight_range: dict = None, exclude_affiliated: bool = True) -> pd.DataFrame:
+def filter_by_weight_range(df: pd.DataFrame, weight_range: dict = None) -> pd.DataFrame:
     if weight_range is None:
         weight_range = get_selected_range()
 
     filtered = df[(df['Weight'] >= weight_range['min']) &
                   (df['Weight'] < weight_range['max'])].copy()
-
-    if exclude_affiliated and 'affiliation_check' in filtered.columns:
-        filtered = filtered[filtered['affiliation_check'] == 0].copy()
 
     return filtered
 
@@ -218,9 +214,6 @@ def calculate_position_counts(etf_name: str) -> pd.DataFrame:
     if df.empty:
         return pd.DataFrame()
 
-    if 'affiliation_check' in df.columns:
-        df = df[df['affiliation_check'] == 0].copy()
-
     results = []
     for date in df['Date'].unique():
         day_data = df[df['Date'] == date]
@@ -261,9 +254,6 @@ def calculate_market_value_by_range(etf_name: str) -> pd.DataFrame:
     df = load_etf_data(etf_name)
     if df.empty:
         return pd.DataFrame()
-
-    if 'affiliation_check' in df.columns:
-        df = df[df['affiliation_check'] == 0].copy()
 
     results = []
     for date in df['Date'].unique():
@@ -317,18 +307,16 @@ def calculate_alternative_returns(etf_name: str, weight_range: dict) -> pd.DataF
         if (date_df['Stock_Price'] == date_df['Yesterday_Price']).all():
             continue
 
-        # Positions IN the current range (small) - exclude affiliated
+        # Positions IN the current range (small)
         small_positions = date_df[
             (date_df['Weight'] >= weight_range['min']) &
-            (date_df['Weight'] < weight_range['max']) &
-            (date_df['affiliation_check'] == 0)
+            (date_df['Weight'] < weight_range['max'])
         ].copy()
 
-        # Positions OUTSIDE the current range (large) OR affiliated
+        # Positions OUTSIDE the current range (large)
         large_positions = date_df[
             (date_df['Weight'] < weight_range['min']) |
-            (date_df['Weight'] >= weight_range['max']) |
-            (date_df['affiliation_check'] == 1)
+            (date_df['Weight'] >= weight_range['max'])
         ].copy()
 
         # Return for ALL positions (actual)
@@ -403,10 +391,6 @@ def calculate_graduation(etf_name: str) -> tuple:
 
         for idx in range(len(group)):
             weight = group.iloc[idx]['Weight']
-            affiliation = group.iloc[idx]['affiliation_check']
-
-            if affiliation != 0:
-                continue
 
             if weight < 1 and not started_small:
                 started_small = True
@@ -435,8 +419,6 @@ def calculate_graduation(etf_name: str) -> tuple:
         for idx in range(len(ticker_df)):
             row = ticker_df.iloc[idx]
             if pd.isna(row['Yesterday_Price']):
-                continue
-            if row['affiliation_check'] != 0:
                 continue
             if idx < small_start_idx:
                 continue
@@ -501,8 +483,7 @@ def calculate_starter_residual(etf_name: str, weight_range: dict) -> tuple:
     first_appearance = df.groupby('Bloomberg Name').first().reset_index()
     starter_tickers = first_appearance[
         (first_appearance['Weight'] >= weight_range['min']) &
-        (first_appearance['Weight'] < weight_range['max']) &
-        (first_appearance['affiliation_check'] == 0)
+        (first_appearance['Weight'] < weight_range['max'])
     ]['Bloomberg Name'].unique()
 
     starter_details = []
@@ -549,8 +530,7 @@ def calculate_starter_residual(etf_name: str, weight_range: dict) -> tuple:
         ticker_data['Was_Large'] = ticker_data['Weight'].shift(1) >= weight_range['max']
         ticker_data['Is_Small'] = (
             (ticker_data['Weight'] >= weight_range['min']) &
-            (ticker_data['Weight'] < weight_range['max']) &
-            (ticker_data['affiliation_check'] == 0)
+            (ticker_data['Weight'] < weight_range['max'])
         )
         ticker_data['Transition'] = ticker_data['Was_Large'] & ticker_data['Is_Small']
 
