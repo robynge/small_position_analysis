@@ -168,12 +168,12 @@ for ticker, info in graduated_stocks.items():
 grad_df = pd.DataFrame(grad_list)
 grad_df = grad_df.sort_values('Graduation Date', ascending=False)
 
-st.dataframe(grad_df.style.format({
-    'Total P&L Before': '${:,.0f}',
-    'Total P&L After': '${:,.0f}',
-    'Avg Return Before (%)': '{:.4f}',
-    'Avg Return After (%)': '{:.4f}'
-}), use_container_width=True, height=400)
+grad_display = grad_df.copy()
+grad_display['Total P&L Before'] = grad_display['Total P&L Before'].round(2)
+grad_display['Total P&L After'] = grad_display['Total P&L After'].round(2)
+grad_display['Avg Return Before (%)'] = grad_display['Avg Return Before (%)'].round(2)
+grad_display['Avg Return After (%)'] = grad_display['Avg Return After (%)'].round(2)
+st.dataframe(grad_display, use_container_width=True, height=400)
 
 st.divider()
 
@@ -186,11 +186,11 @@ if not returns_df.empty:
     display_returns = returns_df.copy()
     display_returns['Daily_Return_%'] = display_returns['Daily_Return'] * 100
 
-    st.dataframe(display_returns[['Date', 'Ticker', 'Weight', 'Daily_Return_%', 'Daily_PnL', 'Period']].style.format({
-        'Weight': '{:.2f}%',
-        'Daily_Return_%': '{:.4f}%',
-        'Daily_PnL': '${:,.0f}'
-    }), use_container_width=True, height=400)
+    display_cols = display_returns[['Date', 'Ticker', 'Weight', 'Daily_Return_%', 'Daily_PnL', 'Period']].copy()
+    display_cols['Weight'] = display_cols['Weight'].round(2)
+    display_cols['Daily_Return_%'] = display_cols['Daily_Return_%'].round(2)
+    display_cols['Daily_PnL'] = display_cols['Daily_PnL'].round(2)
+    st.dataframe(display_cols, use_container_width=True, height=400)
 
 st.divider()
 
