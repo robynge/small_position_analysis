@@ -1,11 +1,8 @@
 """
-ARK ETF Small Position Analysis Dashboard
+ARK Small Position Dashboard
 Main entry point for Streamlit application
 """
 import streamlit as st
-import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
 from pathlib import Path
 import sys
 
@@ -14,39 +11,16 @@ CODE_DIR = Path(__file__).parent / "code"
 sys.path.insert(0, str(CODE_DIR))
 
 from utils.streamlit_config import (
-    render_sidebar, load_etf_data, get_selected_etf,
-    get_selected_range, WEIGHT_RANGES, format_currency,
-    init_session_state
+    render_sidebar, load_etf_data, init_session_state
 )
 
 # Page config
 st.set_page_config(
-    page_title="ARK ETF Analysis Dashboard",
+    page_title="ARK Small Position Dashboard",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
 )
-
-# Custom CSS
-st.markdown("""
-<style>
-    .metric-card {
-        background-color: #f0f2f6;
-        border-radius: 10px;
-        padding: 20px;
-        text-align: center;
-    }
-    .metric-value {
-        font-size: 2em;
-        font-weight: bold;
-        color: #1f77b4;
-    }
-    .metric-label {
-        font-size: 0.9em;
-        color: #666;
-    }
-</style>
-""", unsafe_allow_html=True)
 
 # Initialize session state
 init_session_state()
@@ -55,12 +29,7 @@ init_session_state()
 selected_etf, selected_range = render_sidebar()
 
 # Main content
-st.title("ARK ETF Small Position Analysis Dashboard")
-
-st.markdown("""
-This dashboard provides comprehensive analysis of small positions in ARK Invest ETF portfolios.
-Use the sidebar to select an ETF and weight range, then navigate to different analysis pages.
-""")
+st.title("ARK Small Position Dashboard")
 
 st.divider()
 
@@ -72,107 +41,44 @@ if df.empty:
     st.error("Failed to load data. Please check that the data file exists.")
     st.stop()
 
-# Overview metrics
-st.header(f"📈 {selected_etf} Overview")
-
-col1, col2, col3, col4 = st.columns(4)
-
-# Calculate metrics
-latest_date = df['Date'].max()
-latest_data = df[df['Date'] == latest_date]
-
-total_positions = len(latest_data[latest_data['Position'] > 0])
-total_aum = latest_data['MV'].sum()
-
-# Filter by selected range
-range_data = latest_data[
-    (latest_data['Weight'] >= selected_range['min']) &
-    (latest_data['Weight'] < selected_range['max'])
-]
-range_positions = len(range_data)
-range_mv = range_data['MV'].sum()
-
-with col1:
-    st.metric("Total Positions", f"{total_positions:,}")
-
-with col2:
-    st.metric("Total AUM", format_currency(total_aum))
-
-with col3:
-    st.metric(f"Positions in {selected_range['label']}", f"{range_positions:,}")
-
-with col4:
-    pct_aum = (range_mv / total_aum * 100) if total_aum > 0 else 0
-    st.metric(f"{selected_range['label']} % of AUM", f"{pct_aum:.2f}%")
-
-st.divider()
-
-# Weight distribution chart
-st.subheader("Weight Distribution (Current)")
-
-# Calculate distribution
-dist_data = []
-for wr in WEIGHT_RANGES:
-    mask = (latest_data['Weight'] >= wr['min']) & (latest_data['Weight'] < wr['max'])
-    count = mask.sum()
-    mv = latest_data.loc[mask, 'MV'].sum()
-    dist_data.append({
-        'Range': wr['label'],
-        'Position Count': count,
-        'Market Value': mv
-    })
-
-dist_df = pd.DataFrame(dist_data)
-
-col1, col2 = st.columns(2)
-
-with col1:
-    fig_count = px.bar(
-        dist_df,
-        x='Range',
-        y='Position Count',
-        title='Position Count by Weight Range',
-        color='Range',
-        color_discrete_sequence=px.colors.qualitative.Set2
-    )
-    fig_count.update_layout(showlegend=False)
-    st.plotly_chart(fig_count, use_container_width=True)
-
-with col2:
-    fig_mv = px.pie(
-        dist_df,
-        values='Market Value',
-        names='Range',
-        title='Market Value Distribution by Weight Range',
-        color_discrete_sequence=px.colors.qualitative.Set2
-    )
-    st.plotly_chart(fig_mv, use_container_width=True)
-
-st.divider()
-
-# Date range info
-st.subheader("Data Information")
+# Data range info
+st.header(f"{selected_etf} Data Range")
 
 col1, col2, col3 = st.columns(3)
 with col1:
-    st.info(f"**Data Start:** {df['Date'].min().strftime('%Y-%m-%d')}")
+    st.metric("Data Start", df['Date'].min().strftime('%Y-%m-%d'))
 with col2:
-    st.info(f"**Data End:** {df['Date'].max().strftime('%Y-%m-%d')}")
+    st.metric("Data End", df['Date'].max().strftime('%Y-%m-%d'))
 with col3:
-    st.info(f"**Total Trading Days:** {df['Date'].nunique():,}")
+    st.metric("Total Trading Days", f"{df['Date'].nunique():,}")
 
-# Navigation guide
 st.divider()
-st.subheader("📚 Analysis Modules")
+
+# Project description and analysis modules
+st.header("About This Dashboard")
+
+st.markdown(f"""
+This dashboard analyzes **small positions** (by portfolio weight) in ARK Invest ETF portfolios.
+ARK ETFs hold a mix of high-conviction large positions and smaller exploratory positions. This tool
+investigates how these smaller positions behave over time — whether they contribute positively to
+overall returns, how often they "graduate" into larger positions, and what happens to positions that
+enter or exit specific weight ranges.
+
+Use the **sidebar** to select an ETF and weight range, then navigate to the analysis pages below.
+
+**Currently analyzing:** {selected_etf} | **Weight range:** {selected_range['label']}
+""")
+
+st.divider()
+
+st.header("Analysis Modules")
 
 st.markdown("""
-Navigate to different analysis pages using the sidebar:
-
 | Page | Description |
 |------|-------------|
-| **P&L Analysis** | Calculate adjusted P&L for positions in the selected weight range |
-| **Position Analysis** | Track position counts and market value trends |
-| **Alternative Returns** | Compare returns with vs without small positions |
-| **Graduation Analysis** | Track stocks graduating from <1% to >=1% |
-| **Starter/Residual** | Identify new entries vs positions falling into range |
+| **P&L Analysis** | Calculate adjusted P&L (accounting for inflows/outflows) for positions in the selected weight range. Identifies which small positions contribute most to portfolio gains or losses. |
+| **Position Analysis** | Track how the number of positions in each weight range changes over time, along with the market value allocated to each range as a percentage of total AUM. |
+| **Alternative Returns** | Compare three return streams: actual full-ETF returns, returns excluding small positions, and returns of small positions only — to quantify the impact of small positions on overall performance. |
+| **Graduation Analysis** | Track stocks that "graduated" from <1% weight to >=1%, comparing their daily returns and P&L before vs after graduation to evaluate ARK's position-sizing decisions. |
+| **Starter/Residual** | Distinguish between new entries (starters) entering the weight range from below vs declining positions (residuals) falling into the range from above, and track their subsequent outcomes. |
 """)
