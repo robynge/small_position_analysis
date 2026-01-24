@@ -55,38 +55,23 @@ def get_selected_range():
 # DATA LOADING FUNCTIONS
 # ============================================================================
 
-@st.cache_data(ttl=3600)
-def load_consolidated_data():
-    consolidated_file = INPUT_DIR / "Consolidated_ETF_Holdings.xlsx"
-    if not consolidated_file.exists():
-        st.error(f"Data file not found: {consolidated_file}")
-        return None
-    return pd.read_excel(consolidated_file, sheet_name='Sheet1')
-
 @st.cache_data
 def load_etf_data(etf_name: str) -> pd.DataFrame:
-    consolidated_df = load_consolidated_data()
-    if consolidated_df is None:
+    etf_file = INPUT_DIR / f"{etf_name}_Transformed_Data.xlsx"
+    if not etf_file.exists():
+        st.error(f"Data file not found: {etf_file}")
         return pd.DataFrame()
 
-    position_col = f'{etf_name}_Position'
-    mv_col = f'{etf_name}_MV'
-    weight_col = f'{etf_name}_Weight'
+    df = pd.read_excel(etf_file)
 
-    df = consolidated_df[['Date', 'Bloomberg Name', position_col, mv_col, weight_col]].copy()
-    df.rename(columns={
-        position_col: 'Position',
-        mv_col: 'MV',
-        weight_col: 'Weight'
-    }, inplace=True)
+    df['Date'] = pd.to_datetime(df['Date'], format='%m/%d/%Y')
+    df.rename(columns={'Market Value': 'MV'}, inplace=True)
 
-    df['Stock_Price'] = np.where(df['Position'] > 0, df['MV'] / df['Position'], np.nan)
-    df['Date'] = pd.to_datetime(df['Date'])
     df = df.dropna(subset=['Position', 'Weight'], how='all').copy()
+    df = df[df['Stock_Price'].notna() & (df['Stock_Price'] > 0)].copy()
 
     if 'Bloomberg Name' in df.columns:
         df = df[~df['Bloomberg Name'].str.contains('Curncy', case=False, na=False)].copy()
-        df = df[df['Bloomberg Name'] != 'TCS LI Equity'].copy()
 
     df['Weight'] = df['Weight'] * 100
     df['Company_Name'] = df['Bloomberg Name']
