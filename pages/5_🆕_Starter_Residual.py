@@ -61,7 +61,7 @@ with col3:
     st.metric("Starter Graduation Rate", f"{summary['starter_graduation_rate']:.1f}%")
 
 with col4:
-    st.metric("Residual Graduation Rate", f"{summary['residual_graduation_rate']:.1f}%")
+    st.metric("Residual Recovery Rate", f"{summary['residual_recovery_rate']:.1f}%")
 
 st.divider()
 
@@ -87,7 +87,7 @@ with col1:
             title='Starter Outcomes',
             color='Outcome',
             color_discrete_map={
-                'Graduated': '#2ecc71',
+                'Graduated to Large': '#2ecc71',
                 'Dropped': '#e74c3c',
                 'Still Small': '#95a5a6'
             }
@@ -102,8 +102,7 @@ with col1:
         with col_b:
             st.metric("Dropped", summary['starter_dropped'])
         with col_c:
-            still_small = summary['total_starters'] - summary['starter_graduated'] - summary['starter_dropped']
-            st.metric("Still Small", still_small)
+            st.metric("Still Small", summary['starter_still_small'])
     else:
         st.info("No starter positions found")
 
@@ -122,9 +121,9 @@ with col2:
             title='Residual Outcomes',
             color='Outcome',
             color_discrete_map={
-                'Graduated': '#2ecc71',
+                'Recovered to Large': '#2ecc71',
                 'Dropped': '#e74c3c',
-                'Still Small': '#95a5a6'
+                'Still Residual': '#95a5a6'
             }
         )
         fig_residual.update_traces(hovertemplate='%{label}<br>Count: %{value:.2f}<br>%{percent:.2%}<extra></extra>')
@@ -133,12 +132,11 @@ with col2:
         # Metrics
         col_a, col_b, col_c = st.columns(3)
         with col_a:
-            st.metric("Graduated", summary['residual_graduated'])
+            st.metric("Recovered", summary['residual_recovered'])
         with col_b:
             st.metric("Dropped", summary['residual_dropped'])
         with col_c:
-            still_small = summary['total_residuals'] - summary['residual_graduated'] - summary['residual_dropped']
-            st.metric("Still Small", still_small)
+            st.metric("Still Residual", summary['residual_still_residual'])
     else:
         st.info("No residual positions found")
 
@@ -153,9 +151,9 @@ st.header("Starters vs Residuals Comparison")
 comparison_data = pd.DataFrame({
     'Category': ['Starters', 'Residuals'],
     'Total': [summary['total_starters'], summary['total_residuals']],
-    'Graduated': [summary['starter_graduated'], summary['residual_graduated']],
+    'Graduated/Recovered': [summary['starter_graduated'], summary['residual_recovered']],
     'Dropped': [summary['starter_dropped'], summary['residual_dropped']],
-    'Graduation Rate (%)': [summary['starter_graduation_rate'], summary['residual_graduation_rate']]
+    'Success Rate (%)': [summary['starter_graduation_rate'], summary['residual_recovery_rate']]
 })
 
 col1, col2 = st.columns(2)
@@ -173,11 +171,11 @@ with col1:
     ))
 
     fig_compare.add_trace(go.Bar(
-        name='Graduated',
+        name='Graduated/Recovered',
         x=comparison_data['Category'],
-        y=comparison_data['Graduated'],
+        y=comparison_data['Graduated/Recovered'],
         marker_color='#2ecc71',
-        hovertemplate='%{x}<br>Graduated: %{y:.2f}<extra></extra>'
+        hovertemplate='%{x}<br>Graduated/Recovered: %{y:.2f}<extra></extra>'
     ))
 
     fig_compare.add_trace(go.Bar(
@@ -198,12 +196,12 @@ with col1:
     st.plotly_chart(fig_compare, use_container_width=True)
 
 with col2:
-    # Graduation rate comparison
+    # Success rate comparison
     fig_rate = px.bar(
         comparison_data,
         x='Category',
-        y='Graduation Rate (%)',
-        title='Graduation Rate Comparison',
+        y='Success Rate (%)',
+        title='Success Rate Comparison',
         color='Category',
         color_discrete_sequence=['#3498db', '#e74c3c']
     )
@@ -224,11 +222,11 @@ with col1:
     if not starters_df.empty:
         fig_starter_days = px.histogram(
             starters_df,
-            x='Days_In_Range',
+            x='Days as Small Position',
             color='Outcome',
-            title='Starters: Days in Range by Outcome',
+            title='Starters: Days as Small Position by Outcome',
             color_discrete_map={
-                'Graduated': '#2ecc71',
+                'Graduated to Large': '#2ecc71',
                 'Dropped': '#e74c3c',
                 'Still Small': '#95a5a6'
             },
@@ -239,9 +237,9 @@ with col1:
 
         # Average days by outcome
         if len(starters_df) > 0:
-            avg_days = starters_df.groupby('Outcome')['Days_In_Range'].mean().reset_index()
+            avg_days = starters_df.groupby('Outcome')['Days as Small Position'].mean().reset_index()
             avg_days.columns = ['Outcome', 'Avg Days']
-            st.dataframe(avg_days.style.format({'Avg Days': '{:.0f}'}), use_container_width=True)
+            st.dataframe(avg_days.round({'Avg Days': 0}), use_container_width=True)
     else:
         st.info("No starter data available")
 
@@ -249,13 +247,13 @@ with col2:
     if not residuals_df.empty:
         fig_residual_days = px.histogram(
             residuals_df,
-            x='Days_In_Range',
+            x='Days as Residual',
             color='Outcome',
-            title='Residuals: Days in Range by Outcome',
+            title='Residuals: Days as Residual by Outcome',
             color_discrete_map={
-                'Graduated': '#2ecc71',
+                'Recovered to Large': '#2ecc71',
                 'Dropped': '#e74c3c',
-                'Still Small': '#95a5a6'
+                'Still Residual': '#95a5a6'
             },
             nbins=30
         )
@@ -264,9 +262,9 @@ with col2:
 
         # Average days by outcome
         if len(residuals_df) > 0:
-            avg_days = residuals_df.groupby('Outcome')['Days_In_Range'].mean().reset_index()
+            avg_days = residuals_df.groupby('Outcome')['Days as Residual'].mean().reset_index()
             avg_days.columns = ['Outcome', 'Avg Days']
-            st.dataframe(avg_days.style.format({'Avg Days': '{:.0f}'}), use_container_width=True)
+            st.dataframe(avg_days.round({'Avg Days': 0}), use_container_width=True)
     else:
         st.info("No residual data available")
 
@@ -282,37 +280,39 @@ if not starters_df.empty or not residuals_df.empty:
     all_entries = []
 
     if not starters_df.empty:
-        starters_copy = starters_df.copy()
+        starters_copy = starters_df[['Bloomberg Name', 'Entry Date', 'Entry Weight %', 'Outcome']].copy()
+        starters_copy.columns = ['Stock', 'Date', 'Weight', 'Outcome']
         starters_copy['Type'] = 'Starter'
         all_entries.append(starters_copy)
 
     if not residuals_df.empty:
-        residuals_copy = residuals_df.copy()
+        residuals_copy = residuals_df[['Bloomberg Name', 'Transition Date', 'Weight at Transition %', 'Outcome']].copy()
+        residuals_copy.columns = ['Stock', 'Date', 'Weight', 'Outcome']
         residuals_copy['Type'] = 'Residual'
         all_entries.append(residuals_copy)
 
     combined_df = pd.concat(all_entries, ignore_index=True)
-    combined_df = combined_df.sort_values('Entry_Date')
+    combined_df = combined_df.sort_values('Date')
 
     # Date range slider
-    min_date = pd.to_datetime(combined_df['Entry_Date'].min())
-    max_date = pd.to_datetime(combined_df['Entry_Date'].max())
+    min_date = pd.to_datetime(combined_df['Date'].min())
+    max_date = pd.to_datetime(combined_df['Date'].max())
     date_range = st.slider("Date Range", min_value=min_date.to_pydatetime(),
                            max_value=max_date.to_pydatetime(),
                            value=(min_date.to_pydatetime(), max_date.to_pydatetime()),
                            key="timeline_date_range")
-    plot_df = combined_df[(pd.to_datetime(combined_df['Entry_Date']) >= date_range[0]) &
-                          (pd.to_datetime(combined_df['Entry_Date']) <= date_range[1])]
+    plot_df = combined_df[(pd.to_datetime(combined_df['Date']) >= date_range[0]) &
+                          (pd.to_datetime(combined_df['Date']) <= date_range[1])]
 
     # Timeline scatter
     fig_timeline = px.scatter(
         plot_df,
-        x='Entry_Date',
-        y='Entry_Weight',
+        x='Date',
+        y='Weight',
         color='Type',
         symbol='Outcome',
         hover_name='Stock',
-        hover_data=['Days_In_Range', 'Outcome'],
+        hover_data=['Outcome'],
         title='Position Entry Timeline',
         color_discrete_map={'Starter': '#3498db', 'Residual': '#e74c3c'}
     )
@@ -343,20 +343,20 @@ with tab1:
             'Total Residuals',
             'Starter Graduated',
             'Starter Dropped',
-            'Residual Graduated',
+            'Residual Recovered',
             'Residual Dropped',
             'Starter Graduation Rate (%)',
-            'Residual Graduation Rate (%)'
+            'Residual Recovery Rate (%)'
         ],
         'Value': [
             summary['total_starters'],
             summary['total_residuals'],
             summary['starter_graduated'],
             summary['starter_dropped'],
-            summary['residual_graduated'],
+            summary['residual_recovered'],
             summary['residual_dropped'],
             summary['starter_graduation_rate'],
-            summary['residual_graduation_rate']
+            summary['residual_recovery_rate']
         ]
     })
 
@@ -365,26 +365,16 @@ with tab1:
 with tab2:
     st.subheader("Starter Positions")
     if not starters_df.empty:
-        st.dataframe(
-            starters_df.style.format({
-                'Entry_Weight': '{:.2f}%'
-            }),
-            use_container_width=True,
-            height=400
-        )
+        display_starters = starters_df.round({'Entry Weight %': 2, 'Max Weight Achieved %': 2, 'Final Weight %': 2})
+        st.dataframe(display_starters, use_container_width=True, height=400)
     else:
         st.info("No starter positions found")
 
 with tab3:
     st.subheader("Residual Positions")
     if not residuals_df.empty:
-        st.dataframe(
-            residuals_df.style.format({
-                'Entry_Weight': '{:.2f}%'
-            }),
-            use_container_width=True,
-            height=400
-        )
+        display_residuals = residuals_df.round({'Peak Weight Before %': 2, 'Weight at Transition %': 2, 'Weight Drawdown %': 2, 'Max Weight After %': 2, 'Final Weight %': 2})
+        st.dataframe(display_residuals, use_container_width=True, height=400)
     else:
         st.info("No residual positions found")
 
@@ -392,23 +382,18 @@ with tab4:
     st.subheader("Reappeared Positions")
     st.markdown("Positions that exited and later re-entered the weight range.")
     if not reappeared_df.empty:
-        st.dataframe(
-            reappeared_df.style.format({
-                'Re_entry_Weight': '{:.2f}%'
-            }),
-            use_container_width=True,
-            height=400
-        )
+        display_reappeared = reappeared_df.round({'Re-entry Weight %': 2})
+        st.dataframe(display_reappeared, use_container_width=True, height=400)
 
         # Summary metrics for reappeared
         col_a, col_b, col_c = st.columns(3)
         with col_a:
             st.metric("Total Reappeared", len(reappeared_df))
         with col_b:
-            avg_days = reappeared_df['Days_Absent'].mean() if 'Days_Absent' in reappeared_df.columns else 0
+            avg_days = reappeared_df['Days Absent'].mean() if 'Days Absent' in reappeared_df.columns else 0
             st.metric("Avg Days Absent", f"{avg_days:.0f}")
         with col_c:
-            avg_weight = reappeared_df['Re_entry_Weight'].mean() if 'Re_entry_Weight' in reappeared_df.columns else 0
+            avg_weight = reappeared_df['Re-entry Weight %'].mean() if 'Re-entry Weight %' in reappeared_df.columns else 0
             st.metric("Avg Re-entry Weight", f"{avg_weight:.2f}%")
     else:
         st.info("No reappeared positions found")
