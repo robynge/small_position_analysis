@@ -13,8 +13,7 @@ import sys
 # Add code directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "code"))
 from utils.streamlit_config import (
-    render_sidebar, calculate_pnl, format_currency,
-    create_excel_download, create_multi_sheet_excel
+    render_sidebar, calculate_pnl, format_currency
 )
 
 st.set_page_config(
@@ -218,32 +217,3 @@ with tab2:
         height=400
     )
 
-st.divider()
-
-# Download buttons
-st.subheader("Download Data")
-
-col1, col2 = st.columns(2)
-
-with col1:
-    excel_data = create_multi_sheet_excel({
-        'Daily_PnL': daily_pnl,
-        'Stock_PnL': stock_pnl
-    }, 'pnl_data.xlsx')
-
-    st.download_button(
-        label="📥 Download Excel (All Data)",
-        data=excel_data,
-        file_name=f"{selected_etf}_{selected_range['folder']}_PnL_Data.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
-
-with col2:
-    # Download chart as HTML (interactive)
-    html_buffer = fig_line.to_html(include_plotlyjs='cdn')
-    st.download_button(
-        label="📥 Download Chart (HTML)",
-        data=html_buffer,
-        file_name=f"{selected_etf}_{selected_range['folder']}_PnL_Chart.html",
-        mime="text/html"
-    )

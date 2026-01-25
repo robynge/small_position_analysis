@@ -12,8 +12,7 @@ import sys
 # Add code directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "code"))
 from utils.streamlit_config import (
-    render_sidebar, calculate_starter_residual,
-    create_excel_download, create_multi_sheet_excel
+    render_sidebar, calculate_starter_residual
 )
 
 st.set_page_config(
@@ -398,37 +397,3 @@ with tab4:
     else:
         st.info("No reappeared positions found")
 
-st.divider()
-
-# ============================================================================
-# Download Section
-# ============================================================================
-st.header("Download Data")
-
-col1, col2 = st.columns(2)
-
-with col1:
-    sheets = {
-        'Summary': pd.DataFrame([summary]),
-        'Starters': starters_df if not starters_df.empty else pd.DataFrame(),
-        'Residuals': residuals_df if not residuals_df.empty else pd.DataFrame(),
-        'Reappeared': reappeared_df if not reappeared_df.empty else pd.DataFrame()
-    }
-
-    excel_data = create_multi_sheet_excel(sheets, 'starter_residual.xlsx')
-    st.download_button(
-        label="📥 Download All Data (Excel)",
-        data=excel_data,
-        file_name=f"{selected_etf}_{selected_range['folder']}_Starter_Residual.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
-
-with col2:
-    if not starters_df.empty or not residuals_df.empty:
-        html_buffer = fig_timeline.to_html(include_plotlyjs='cdn')
-        st.download_button(
-            label="📥 Download Timeline Chart (HTML)",
-            data=html_buffer,
-            file_name=f"{selected_etf}_{selected_range['folder']}_Timeline_Chart.html",
-            mime="text/html"
-        )

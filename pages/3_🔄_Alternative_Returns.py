@@ -13,7 +13,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "code"))
 from utils.streamlit_config import (
-    render_sidebar, calculate_alternative_returns, create_excel_download
+    render_sidebar, calculate_alternative_returns
 )
 
 st.set_page_config(page_title="Alternative Returns", page_icon="🔄", layout="wide")
@@ -228,18 +228,3 @@ st.dataframe(display_df[['Date', 'Actual_%', 'ExcludeSmall_%', 'SmallOnly_%',
                           'Cum_Actual_%', 'Cum_ExcludeSmall_%', 'Cum_SmallOnly_%']],
              use_container_width=True, height=400)
 
-st.divider()
-
-# ============================================================================
-# Download
-# ============================================================================
-st.header("Download")
-
-col1, col2 = st.columns(2)
-with col1:
-    st.download_button("📥 Download Excel", create_excel_download(returns_df, 'returns.xlsx'),
-                       f"{selected_etf}_{selected_range['folder']}_Alternative_Returns.xlsx",
-                       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-with col2:
-    st.download_button("📥 Download Chart (HTML)", fig_cumulative.to_html(include_plotlyjs='cdn'),
-                       f"{selected_etf}_{selected_range['folder']}_Returns_Chart.html", "text/html")

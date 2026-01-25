@@ -11,8 +11,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "code"))
 from utils.streamlit_config import (
-    render_sidebar, calculate_graduation, format_currency,
-    create_excel_download, create_multi_sheet_excel
+    render_sidebar, calculate_graduation, format_currency
 )
 
 st.set_page_config(page_title="Graduation Analysis", page_icon="🎓", layout="wide")
@@ -192,27 +191,3 @@ if not returns_df.empty:
     display_cols['Daily_PnL'] = display_cols['Daily_PnL'].round(2)
     st.dataframe(display_cols, use_container_width=True, height=400)
 
-st.divider()
-
-# ============================================================================
-# Download
-# ============================================================================
-st.header("Download Data")
-
-col1, col2 = st.columns(2)
-
-with col1:
-    sheets = {
-        'Summary': summary_df,
-        'Graduated_Stocks': grad_df,
-        'Daily_Returns': returns_df
-    }
-    excel_data = create_multi_sheet_excel(sheets, 'graduation.xlsx')
-    st.download_button("📥 Download All Data (Excel)", excel_data,
-                       f"{selected_etf}_Graduation_Analysis.xlsx",
-                       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-with col2:
-    if 'fig_pnl' in dir():
-        st.download_button("📥 Download Chart (HTML)", fig_pnl.to_html(include_plotlyjs='cdn'),
-                           f"{selected_etf}_Graduation_Chart.html", "text/html")

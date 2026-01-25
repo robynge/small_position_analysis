@@ -14,8 +14,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent / "code"))
 from utils.streamlit_config import (
     render_sidebar, calculate_position_counts, calculate_market_value,
-    calculate_market_value_by_range, format_currency, WEIGHT_RANGES,
-    create_excel_download, create_multi_sheet_excel
+    calculate_market_value_by_range, format_currency, WEIGHT_RANGES
 )
 
 st.set_page_config(
@@ -288,40 +287,3 @@ with tab3:
     else:
         st.info("No data available")
 
-st.divider()
-
-# ============================================================================
-# Download Section
-# ============================================================================
-st.header("Download Data")
-
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    excel_data = create_excel_download(position_counts, 'position_counts.xlsx')
-    st.download_button(
-        label="📥 Position Counts (Excel)",
-        data=excel_data,
-        file_name=f"{selected_etf}_Position_Counts.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
-
-with col2:
-    if not market_value.empty:
-        excel_data = create_excel_download(market_value, 'market_value.xlsx')
-        st.download_button(
-            label="📥 Market Value (Excel)",
-            data=excel_data,
-            file_name=f"{selected_etf}_{selected_range['folder']}_Market_Value.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
-
-with col3:
-    if not mv_by_range.empty:
-        excel_data = create_excel_download(mv_by_range, 'mv_by_range.xlsx')
-        st.download_button(
-            label="📥 MV by Range (Excel)",
-            data=excel_data,
-            file_name=f"{selected_etf}_Market_Value_By_Range.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
