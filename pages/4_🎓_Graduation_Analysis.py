@@ -1,6 +1,6 @@
 """
 Crossing Analysis Page
-Unified analysis of stocks crossing the weight range boundary in either direction
+Unified analysis of stocks crossing the weight range boundaries in either direction
 """
 import streamlit as st
 import pandas as pd
@@ -18,10 +18,41 @@ st.set_page_config(page_title="Crossing Analysis", page_icon="🎓", layout="wid
 
 selected_etf, selected_range = render_sidebar()
 
-boundary = selected_range['max']
+lo = selected_range['min']
+hi = selected_range['max']
 
 st.title("Crossing Analysis")
-st.markdown(f"**ETF:** {selected_etf} | **Weight Range:** {selected_range['label']} | **Boundary:** {boundary}%")
+st.markdown(f"**ETF:** {selected_etf} | **Weight Range:** {selected_range['label']} | **Boundaries:** {lo}% / {hi}%")
+
+# ============================================================================
+# Crossing Type Definitions
+# ============================================================================
+with st.expander("Crossing Type Definitions"):
+    st.markdown(f"""
+Three zones are defined by the weight range **{selected_range['label']}**:
+- **Below**: weight < {lo}%
+- **In Range**: {lo}% ≤ weight < {hi}%
+- **Above**: weight ≥ {hi}%
+
+**Crossing Types (6):**
+
+| Direction | From | To | Description |
+|-----------|------|----|-------------|
+| **Small Starter** | Below (<{lo}%) | In Range ({lo}%-{hi}%) | Stock entered the range from below |
+| **Big Starter** | In Range ({lo}%-{hi}%) | Above (≥{hi}%) | Stock grew out of the range upward |
+| **Super Starter** | Below (<{lo}%) | Above (≥{hi}%) | Stock jumped from below range to above |
+| **Small Residual** | Above (≥{hi}%) | In Range ({lo}%-{hi}%) | Stock fell into the range from above |
+| **Big Residual** | In Range ({lo}%-{hi}%) | Below (<{lo}%) | Stock fell out of the range downward |
+| **Super Residual** | Above (≥{hi}%) | Below (<{lo}%) | Stock dropped from above range to below |
+
+**Native Types (3):**
+
+| Type | Description |
+|------|-------------|
+| **Native Smaller** | Stock has always been below {lo}% — never crossed either boundary |
+| **Native Small** | Stock has always been within {lo}%-{hi}% — never crossed either boundary |
+| **Native Large** | Stock has always been ≥{hi}% — never crossed either boundary |
+""")
 
 st.divider()
 
@@ -43,40 +74,64 @@ with col1:
 with col2:
     st.metric("Total Stocks Ever", summary['total_stocks_ever'])
 with col3:
-    never_crossed = summary['count_native_small'] + summary['count_native_large']
+    never_crossed = summary['count_native_smaller'] + summary['count_native_small'] + summary['count_native_large']
     st.metric("Never Crossed Boundary", never_crossed)
 
-col1, col2, col3, col4 = st.columns(4)
+col1, col2, col3 = st.columns(3)
 with col1:
-    st.metric("Native Small", summary['count_native_small'])
+    st.metric("Native Smaller", summary['count_native_smaller'],
+              help=f"Stocks always below {lo}%")
 with col2:
-    st.metric("Native Large", summary['count_native_large'])
+    st.metric("Native Small", summary['count_native_small'],
+              help=f"Stocks always within {lo}%-{hi}%")
 with col3:
-    st.metric("Had Starter", summary['count_had_starter'],
-              help="Stocks that crossed upward (small to large) at least once")
-with col4:
-    st.metric("Had Residual", summary['count_had_residual'],
-              help="Stocks that crossed downward (large to small) at least once")
+    st.metric("Native Large", summary['count_native_large'],
+              help=f"Stocks always ≥{hi}%")
+
+col1, col2 = st.columns(2)
+with col1:
+    st.metric("Had Starter (any)", summary['count_had_starter'],
+              help="Stocks that had at least one upward crossing (Small/Big/Super Starter)")
+with col2:
+    st.metric("Had Residual (any)", summary['count_had_residual'],
+              help="Stocks that had at least one downward crossing (Small/Big/Super Residual)")
 
 col1, col2 = st.columns(2)
 with col1:
     st.metric("Starter then fell back",
               f"{summary['count_starter_then_fell']} / {summary['count_had_starter']}" if summary['count_had_starter'] > 0 else "0",
-              help="Stocks that crossed up then later crossed back down")
+              help="Stocks that had an upward crossing then later a downward crossing")
 with col2:
     st.metric("Residual then grew back",
               f"{summary['count_residual_then_grew']} / {summary['count_had_residual']}" if summary['count_had_residual'] > 0 else "0",
-              help="Stocks that crossed down then later crossed back up")
+              help="Stocks that had a downward crossing then later an upward crossing")
+
+# Crossing type breakdown
+if summary.get('crossing_type_counts'):
+    st.subheader("Crossing Events by Type")
+    type_order = ['Small Starter', 'Big Starter', 'Super Starter',
+                  'Small Residual', 'Big Residual', 'Super Residual']
+    cols = st.columns(6)
+    for i, ct in enumerate(type_order):
+        with cols[i]:
+            st.metric(ct, summary['crossing_type_counts'].get(ct, 0))
 
 st.divider()
 
 # ============================================================================
 # Cumulative Return by Category
 # ============================================================================
-category_order = ['Starter', 'Residual', 'Native Small', 'Native Large']
+category_order = ['Small Starter', 'Big Starter', 'Super Starter',
+                  'Small Residual', 'Big Residual', 'Super Residual',
+                  'Native Smaller', 'Native Small', 'Native Large']
 color_map = {
-    'Starter': '#3498db',
-    'Residual': '#e74c3c',
+    'Small Starter': '#3498db',
+    'Big Starter': '#2980b9',
+    'Super Starter': '#1a5276',
+    'Small Residual': '#e74c3c',
+    'Big Residual': '#c0392b',
+    'Super Residual': '#922b21',
+    'Native Smaller': '#bdc3c7',
     'Native Small': '#95a5a6',
     'Native Large': '#2ecc71',
 }
@@ -84,6 +139,10 @@ color_map = {
 st.header("Cumulative Return by Category")
 
 if not returns_df.empty:
+    # Only show categories that exist in the data
+    existing_periods = returns_df['Period'].unique().tolist()
+    active_order = [c for c in category_order if c in existing_periods]
+
     daily_cat = returns_df.groupby(['Date', 'Period'])['Daily_Return'].mean().reset_index()
     daily_cat = daily_cat.sort_values('Date')
     daily_cat['Cumulative_Return'] = daily_cat.groupby('Period')['Daily_Return'].cumsum() * 100
@@ -93,7 +152,7 @@ if not returns_df.empty:
         x='Date',
         y='Cumulative_Return',
         color='Period',
-        category_orders={'Period': category_order},
+        category_orders={'Period': active_order},
         color_discrete_map=color_map,
     )
     fig_cum.update_layout(
@@ -114,6 +173,9 @@ st.divider()
 st.header("Daily P&L Contribution by Category")
 
 if not returns_df.empty:
+    existing_periods = returns_df['Period'].unique().tolist()
+    active_order = [c for c in category_order if c in existing_periods]
+
     daily_pnl = returns_df.groupby(['Date', 'Period'])['Daily_PnL'].sum().reset_index()
     daily_pnl = daily_pnl.sort_values('Date')
     daily_pnl['Cumulative_PnL'] = daily_pnl.groupby('Period')['Daily_PnL'].cumsum()
@@ -123,7 +185,7 @@ if not returns_df.empty:
         x='Date',
         y='Cumulative_PnL',
         color='Period',
-        category_orders={'Period': category_order},
+        category_orders={'Period': active_order},
         color_discrete_map=color_map,
     )
     fig_area.update_layout(
@@ -147,13 +209,16 @@ if not returns_df.empty:
     plot_df = returns_df.copy()
     plot_df['Daily_Return_%'] = plot_df['Daily_Return'] * 100
 
+    existing_periods = plot_df['Period'].unique().tolist()
+    active_order = [c for c in category_order if c in existing_periods]
+
     fig_violin = px.violin(
         plot_df,
         x='Period',
         y='Daily_Return_%',
         color='Period',
         box=True,
-        category_orders={'Period': category_order},
+        category_orders={'Period': active_order},
         color_discrete_map=color_map,
     )
     fig_violin.update_layout(
@@ -163,7 +228,7 @@ if not returns_df.empty:
     )
     fig_violin.update_traces(hovertemplate='%{y:.4f}%<extra></extra>')
 
-    for period in category_order:
+    for period in active_order:
         subset = plot_df[plot_df['Period'] == period]['Daily_Return_%']
         if len(subset) == 0:
             continue
@@ -190,7 +255,14 @@ st.divider()
 st.header("Crossing Events: Before vs After Return")
 
 if not crossing_df.empty:
-    color_map_dir = {'Starter': '#3498db', 'Residual': '#e74c3c'}
+    color_map_dir = {
+        'Small Starter': '#3498db',
+        'Big Starter': '#2980b9',
+        'Super Starter': '#1a5276',
+        'Small Residual': '#e74c3c',
+        'Big Residual': '#c0392b',
+        'Super Residual': '#922b21',
+    }
 
     fig_scatter = px.scatter(
         crossing_df,
@@ -232,10 +304,11 @@ st.divider()
 st.header("Crossing Events Data")
 
 if not crossing_df.empty:
+    all_directions = sorted(crossing_df['Direction'].unique().tolist())
     direction_filter = st.multiselect(
         "Filter by Direction",
-        options=['Starter', 'Residual'],
-        default=['Starter', 'Residual'],
+        options=all_directions,
+        default=all_directions,
         key='crossing_direction_filter'
     )
 

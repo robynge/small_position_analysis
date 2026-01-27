@@ -398,14 +398,25 @@ def calculate_alternative_returns(etf_name: str, weight_range: dict) -> pd.DataF
 @st.cache_data
 def calculate_crossing_analysis(etf_name: str, weight_range: dict) -> tuple:
     """
-    Unified crossing analysis that classifies stocks into four categories:
-    - Starter: crossed from small -> large (upward crossing)
-    - Residual: crossed from large -> small (downward crossing)
-    - Native Small: always within range, never crossed
-    - Native Large: always above range, never crossed
+    Dual-boundary crossing analysis with three zones and nine categories.
 
-    Boundary = weight_range['max']. Crossing is bidirectional and each
-    crossing event is recorded separately.
+    Zones (for range [min, max)):
+      - below: weight < min
+      - in_range: min <= weight < max
+      - above: weight >= max
+
+    Crossing types (6):
+      - Small Starter:  below -> in_range
+      - Big Starter:    in_range -> above
+      - Super Starter:  below -> above
+      - Small Residual: above -> in_range
+      - Big Residual:   in_range -> below
+      - Super Residual: above -> below
+
+    Native types (3):
+      - Native Smaller: always below min
+      - Native Small:   always in [min, max)
+      - Native Large:   always >= max
 
     Returns: (crossing_df, returns_df, category_summary)
     """
@@ -413,7 +424,8 @@ def calculate_crossing_analysis(etf_name: str, weight_range: dict) -> tuple:
     if df.empty:
         return pd.DataFrame(), pd.DataFrame(), {}
 
-    boundary = weight_range['max']
+    lo = weight_range['min']
+    hi = weight_range['max']
 
     df = df.sort_values(['Bloomberg Name', 'Date']).reset_index(drop=True)
 
@@ -444,40 +456,75 @@ def calculate_crossing_analysis(etf_name: str, weight_range: dict) -> tuple:
     df['Daily_Return'] = (df['Stock_Price'] - df['Yesterday_Price']) / df['Yesterday_Price']
     df['Daily_PnL'] = df['Yesterday_Position'] * (df['Stock_Price'] - df['Yesterday_Price'])
 
+    def _zone(weight):
+        """Classify a weight into one of three zones."""
+        if weight < lo:
+            return 'below'
+        elif weight >= hi:
+            return 'above'
+        else:
+            return 'in_range'
+
+    # Map zone transitions to crossing direction names
+    CROSSING_NAMES = {
+        ('below', 'in_range'): 'Small Starter',
+        ('in_range', 'above'): 'Big Starter',
+        ('below', 'above'): 'Super Starter',
+        ('above', 'in_range'): 'Small Residual',
+        ('in_range', 'below'): 'Big Residual',
+        ('above', 'below'): 'Super Residual',
+    }
+
     # Detect crossings per ticker and assign per-day Period labels
     crossing_records = []
     ticker_has_crossings = set()
     period_labels = {}  # df original index -> period string
 
     for ticker, group in df.groupby('Bloomberg Name'):
-        orig_idx = group.index.tolist()  # preserve df's original index
+        orig_idx = group.index.tolist()
         group = group.sort_values('Date').reset_index(drop=True)
-        valid = group['Yesterday_Weight'].notna()
-        yesterday_large = group['Yesterday_Weight'] >= boundary
-        today_large = group['Weight'] >= boundary
-        crossed = valid & (yesterday_large != today_large)
 
-        crossing_indices = group.index[crossed].tolist()
+        # Determine zone for each day
+        zones = group['Weight'].apply(_zone).values
+        yesterday_zones = group['Yesterday_Weight'].apply(
+            lambda w: _zone(w) if pd.notna(w) else None
+        ).values
+
+        # Detect crossings: zone changed and yesterday is valid
+        crossing_indices = []
+        for i in range(len(group)):
+            if yesterday_zones[i] is not None and yesterday_zones[i] != zones[i]:
+                direction = CROSSING_NAMES.get((yesterday_zones[i], zones[i]))
+                if direction:
+                    crossing_indices.append({'idx': i, 'date': group.loc[i, 'Date'], 'direction': direction})
 
         if not crossing_indices:
-            period = 'Native Large' if (group['Weight'] >= boundary).all() else 'Native Small'
+            # Native classification based on all days
+            unique_zones = set(zones)
+            if unique_zones == {'below'}:
+                period = 'Native Smaller'
+            elif unique_zones == {'above'}:
+                period = 'Native Large'
+            else:
+                period = 'Native Small'
             for oi in orig_idx:
                 period_labels[oi] = period
             continue
 
         ticker_has_crossings.add(ticker)
 
-        crossings_for_ticker = []
-        for idx in crossing_indices:
-            row = group.loc[idx]
-            direction = 'Starter' if row['Weight'] >= boundary else 'Residual'
-            crossings_for_ticker.append({'idx': idx, 'date': row['Date'], 'direction': direction})
+        # Assign Period per segment
+        first_zone = zones[0]
+        if first_zone == 'below':
+            first_period = 'Native Smaller'
+        elif first_zone == 'above':
+            first_period = 'Native Large'
+        else:
+            first_period = 'Native Small'
 
-        # Assign Period per segment: before first crossing = Native, after each crossing = its direction
-        first_side = 'Native Large' if group.iloc[0]['Weight'] >= boundary else 'Native Small'
-        segments = [(0, crossings_for_ticker[0]['idx'] - 1, first_side)]
-        for ci, crossing in enumerate(crossings_for_ticker):
-            end_idx = crossings_for_ticker[ci + 1]['idx'] - 1 if ci < len(crossings_for_ticker) - 1 else len(group) - 1
+        segments = [(0, crossing_indices[0]['idx'] - 1, first_period)]
+        for ci, crossing in enumerate(crossing_indices):
+            end_idx = crossing_indices[ci + 1]['idx'] - 1 if ci < len(crossing_indices) - 1 else len(group) - 1
             segments.append((crossing['idx'], end_idx, crossing['direction']))
 
         for start, end, period in segments:
@@ -485,9 +532,9 @@ def calculate_crossing_analysis(etf_name: str, weight_range: dict) -> tuple:
                 period_labels[orig_idx[i]] = period
 
         # Build crossing_df records with before/after windows
-        for ci, crossing in enumerate(crossings_for_ticker):
-            before_start = crossings_for_ticker[ci - 1]['idx'] if ci > 0 else 0
-            after_end = crossings_for_ticker[ci + 1]['idx'] - 1 if ci < len(crossings_for_ticker) - 1 else len(group) - 1
+        for ci, crossing in enumerate(crossing_indices):
+            before_start = crossing_indices[ci - 1]['idx'] if ci > 0 else 0
+            after_end = crossing_indices[ci + 1]['idx'] - 1 if ci < len(crossing_indices) - 1 else len(group) - 1
 
             before_returns = group.iloc[before_start:crossing['idx']]['Daily_Return'].dropna()
             after_returns = group.iloc[crossing['idx']:after_end + 1]['Daily_Return'].dropna()
@@ -512,37 +559,60 @@ def calculate_crossing_analysis(etf_name: str, weight_range: dict) -> tuple:
     # Build category_summary
     all_tickers = set(df['Bloomberg Name'].unique())
     native_tickers = all_tickers - ticker_has_crossings
-    native_small = sum(1 for t in native_tickers
-                       if not (df.loc[df['Bloomberg Name'] == t, 'Weight'] >= boundary).all())
-    native_large = len(native_tickers) - native_small
+
+    # Classify native tickers by their zone
+    native_smaller = 0
+    native_small = 0
+    native_large = 0
+    for t in native_tickers:
+        weights = df.loc[df['Bloomberg Name'] == t, 'Weight']
+        if (weights < lo).all():
+            native_smaller += 1
+        elif (weights >= hi).all():
+            native_large += 1
+        else:
+            native_small += 1
 
     # Current holdings (last date)
     last_date = df['Date'].max()
     current_holdings = df[df['Date'] == last_date]['Bloomberg Name'].nunique()
 
     # Per-ticker crossing directions
-    ticker_directions = {}  # ticker -> set of directions
+    ticker_directions = {}
     if not crossing_df.empty:
         for ticker, grp in crossing_df.groupby('Ticker'):
             ticker_directions[ticker] = set(grp['Direction'])
 
-    had_starter = {t for t, dirs in ticker_directions.items() if 'Starter' in dirs}
-    had_residual = {t for t, dirs in ticker_directions.items() if 'Residual' in dirs}
-    starter_then_fell = had_starter & had_residual  # had Starter, then also had Residual
-    residual_then_grew = had_residual & had_starter  # had Residual, then also had Starter
+    # "Had starter" = any upward crossing (Small Starter, Big Starter, Super Starter)
+    starter_types = {'Small Starter', 'Big Starter', 'Super Starter'}
+    residual_types = {'Small Residual', 'Big Residual', 'Super Residual'}
+    had_starter = {t for t, dirs in ticker_directions.items() if dirs & starter_types}
+    had_residual = {t for t, dirs in ticker_directions.items() if dirs & residual_types}
+    starter_then_fell = had_starter & had_residual
+    residual_then_grew = had_residual & had_starter
+
+    # Count each crossing type
+    crossing_type_counts = {}
+    if not crossing_df.empty:
+        crossing_type_counts = crossing_df['Direction'].value_counts().to_dict()
 
     category_summary = {
         'current_holdings': current_holdings,
         'total_stocks_ever': len(all_tickers),
+        'count_native_smaller': native_smaller,
         'count_native_small': native_small,
         'count_native_large': native_large,
         'count_had_starter': len(had_starter),
         'count_had_residual': len(had_residual),
         'count_starter_then_fell': len(starter_then_fell),
         'count_residual_then_grew': len(residual_then_grew),
+        'crossing_type_counts': crossing_type_counts,
     }
-    for period, key in [('Starter', 'starter'), ('Residual', 'residual'),
-                        ('Native Small', 'native_small'), ('Native Large', 'native_large')]:
+    all_periods = ['Small Starter', 'Big Starter', 'Super Starter',
+                   'Small Residual', 'Big Residual', 'Super Residual',
+                   'Native Smaller', 'Native Small', 'Native Large']
+    for period in all_periods:
+        key = period.lower().replace(' ', '_')
         subset = returns_df.loc[returns_df['Period'] == period, 'Daily_Return']
         category_summary[f'mean_return_{key}'] = subset.mean() * 100 if len(subset) > 0 else 0
 

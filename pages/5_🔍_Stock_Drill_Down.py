@@ -19,10 +19,11 @@ st.set_page_config(page_title="Stock Drill-Down", page_icon="🔍", layout="wide
 
 selected_etf, selected_range = render_sidebar()
 
-boundary = selected_range['max']
+lo = selected_range['min']
+hi = selected_range['max']
 
 st.title("Stock Drill-Down")
-st.markdown(f"**ETF:** {selected_etf} | **Weight Range:** {selected_range['label']} | **Boundary:** {boundary}%")
+st.markdown(f"**ETF:** {selected_etf} | **Weight Range:** {selected_range['label']} | **Boundaries:** {lo}% / {hi}%")
 
 with st.spinner("Loading data..."):
     crossing_df, returns_df, summary = calculate_crossing_analysis(selected_etf, selected_range)
@@ -38,8 +39,8 @@ for ticker in full_df['Bloomberg Name'].unique():
     tdata = full_df[full_df['Bloomberg Name'] == ticker]
     company = tdata['Company_Name'].iloc[0] if 'Company_Name' in tdata.columns else ticker
     total_days = len(tdata)
-    days_in_range = len(tdata[(tdata['Weight'] >= selected_range['min']) &
-                               (tdata['Weight'] < selected_range['max'])])
+    days_in_range = len(tdata[(tdata['Weight'] >= lo) &
+                               (tdata['Weight'] < hi)])
     pct_in_range = days_in_range / total_days * 100 if total_days > 0 else 0
     ticker_info[ticker] = {
         'company': company,
@@ -121,12 +122,22 @@ fig.add_trace(
     secondary_y=True,
 )
 
-# Boundary line as a legend trace
+# Two boundary lines (lo and hi)
 fig.add_trace(
     go.Scatter(
         x=[ticker_data['Date'].min(), ticker_data['Date'].max()],
-        y=[boundary, boundary],
-        name=f'Boundary ({boundary}%)',
+        y=[lo, lo],
+        name=f'Lower Boundary ({lo}%)',
+        line=dict(color='orange', dash='dash', width=1.5),
+        hoverinfo='skip',
+    ),
+    secondary_y=False,
+)
+fig.add_trace(
+    go.Scatter(
+        x=[ticker_data['Date'].min(), ticker_data['Date'].max()],
+        y=[hi, hi],
+        name=f'Upper Boundary ({hi}%)',
         line=dict(color='orange', dash='dash', width=1.5),
         hoverinfo='skip',
     ),
@@ -135,8 +146,16 @@ fig.add_trace(
 
 # Add crossing event markers — one trace per direction
 if not ticker_crossings.empty:
-    for direction, color, symbol in [('Starter', '#2ecc71', 'triangle-up'),
-                                      ('Residual', '#e74c3c', 'triangle-down')]:
+    crossing_styles = {
+        'Small Starter':  {'color': '#2ecc71', 'symbol': 'triangle-up'},
+        'Big Starter':    {'color': '#27ae60', 'symbol': 'triangle-up'},
+        'Super Starter':  {'color': '#1e8449', 'symbol': 'diamond'},
+        'Small Residual': {'color': '#e74c3c', 'symbol': 'triangle-down'},
+        'Big Residual':   {'color': '#c0392b', 'symbol': 'triangle-down'},
+        'Super Residual': {'color': '#922b21', 'symbol': 'diamond'},
+    }
+
+    for direction, style in crossing_styles.items():
         events = ticker_crossings[ticker_crossings['Direction'] == direction]
         if events.empty:
             continue
@@ -156,7 +175,7 @@ if not ticker_crossings.empty:
                     x=dates,
                     y=weights,
                     mode='markers',
-                    marker=dict(size=14, color=color, symbol=symbol,
+                    marker=dict(size=14, color=style['color'], symbol=style['symbol'],
                                 line=dict(width=1, color='white')),
                     name=f'{direction} ({len(dates)})',
                     hovertemplate=f'{direction}<br>%{{x}}<br>Weight: %{{y:.2f}}%<extra></extra>',
@@ -194,4 +213,4 @@ if not ticker_crossings.empty:
     display['Avg_Return_After_Crossing'] = display['Avg_Return_After_Crossing'].round(4)
     st.dataframe(display, use_container_width=True)
 else:
-    st.info(f"No crossing events for {selected_ticker} at boundary {boundary}%.")
+    st.info(f"No crossing events for {selected_ticker} at boundaries {lo}% / {hi}%.")
