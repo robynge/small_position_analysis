@@ -267,14 +267,14 @@ if not crossing_df.empty:
         y='Avg_Return_After_Crossing',
         color='Direction',
         color_discrete_map=color_map_dir,
-        custom_data=['Ticker', 'Date_Str', 'Days_Before_Crossing', 'Days_After_Crossing'],
+        custom_data=['Ticker', 'Date_Str', 'Days_Before_Crossing', 'Days_After_Crossing', 'Direction'],
     )
     fig_scatter.update_traces(
         hovertemplate=(
-            '<b>%{customdata[0]}</b><br>'
+            '<b>%{customdata[0]}</b> — %{customdata[4]}<br>'
             'Date: %{customdata[1]}<br>'
-            'Before: %{x:.4f}% (%{customdata[2]} days)<br>'
-            'After: %{y:.4f}% (%{customdata[3]} days)'
+            'Before: %{x:.2f}% (%{customdata[2]} days)<br>'
+            'After: %{y:.2f}% (%{customdata[3]} days)'
             '<extra></extra>'
         )
     )
