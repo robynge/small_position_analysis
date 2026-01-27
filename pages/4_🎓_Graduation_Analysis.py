@@ -255,6 +255,14 @@ if not returns_df.empty:
             fillcolor='rgba(0,0,0,0)',
             width=0.5,
             showlegend=False,
+            hoverinfo='skip',
+        ))
+        # Invisible marker for single hover tooltip
+        fig_dist.add_trace(go.Scatter(
+            x=[period], y=[median],
+            mode='markers',
+            marker=dict(size=12, opacity=0),
+            showlegend=False,
             hovertemplate=(
                 f'<b>{period}</b><br>'
                 f'n={len(subset):,}<br>'
