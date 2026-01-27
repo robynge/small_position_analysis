@@ -206,8 +206,8 @@ if not returns_df.empty:
     existing_periods = plot_df['Period'].unique().tolist()
     active_order = [c for c in category_order if c in existing_periods]
 
-    # Auto-detect outlier tickers: daily return beyond 99.9th percentile
-    violin_threshold = plot_df['Daily_Return_%'].abs().quantile(0.999)
+    # Auto-detect outlier tickers: daily return beyond 99.99th percentile
+    violin_threshold = plot_df['Daily_Return_%'].abs().quantile(0.9999)
     violin_outlier_tickers = plot_df[
         plot_df['Daily_Return_%'].abs() > violin_threshold
     ]['Ticker'].unique().tolist()
@@ -274,7 +274,7 @@ if not returns_df.empty:
     st.plotly_chart(fig_dist, use_container_width=True)
     if violin_outlier_tickers and violin_outlier_mode == "Exclude Outliers":
         excluded_names = ", ".join(sorted(set(t.replace(" US Equity", "") for t in violin_outlier_tickers)))
-        st.caption(f"\\* Excluded (daily return beyond 99.9th percentile, >{violin_threshold:.1f}%): {excluded_names}")
+        st.caption(f"\\* Excluded (daily return beyond 99.99th percentile, >{violin_threshold:.1f}%): {excluded_names}")
 else:
     st.info("No returns data available.")
 
@@ -307,12 +307,12 @@ if not crossing_df.empty:
     )
     scatter_src['Date_Str'] = pd.to_datetime(scatter_src['Crossing_Date']).dt.strftime('%m/%d/%Y')
 
-    # Auto-detect outlier tickers: short window (<=2 days) with return beyond 99.9th percentile
+    # Auto-detect outlier tickers: short window (<=2 days) with return beyond 99.99th percentile
     all_returns = pd.concat([
         scatter_src['Avg_Return_Before_Crossing'],
         scatter_src['Avg_Return_After_Crossing']
     ]).abs()
-    extreme_threshold = all_returns.quantile(0.999)
+    extreme_threshold = all_returns.quantile(0.9999)
     short_before = scatter_src['Days_Before_Crossing'] <= 2
     short_after = scatter_src['Days_After_Crossing'] <= 2
     extreme_before = scatter_src['Avg_Return_Before_Crossing'].abs() > extreme_threshold
