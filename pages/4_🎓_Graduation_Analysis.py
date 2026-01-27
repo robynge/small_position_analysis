@@ -257,27 +257,37 @@ if not crossing_df.empty:
         'Larger to Smaller': '#922b21',
     }
 
+    # Exclude MCRB (extreme outlier)
+    scatter_df = crossing_df[~crossing_df['Ticker'].str.contains('MCRB', case=False, na=False)].copy()
+
     fig_scatter = px.scatter(
-        crossing_df,
+        scatter_df,
         x='Avg_Return_Before_Crossing',
         y='Avg_Return_After_Crossing',
         color='Direction',
         color_discrete_map=color_map_dir,
-        hover_data={'Ticker': True, 'Crossing_Date': True,
-                    'Days_Before_Crossing': True, 'Days_After_Crossing': True,
-                    'Avg_Return_Before_Crossing': ':.4f',
-                    'Avg_Return_After_Crossing': ':.4f'},
+        custom_data=['Ticker', 'Crossing_Date', 'Days_Before_Crossing', 'Days_After_Crossing'],
+    )
+    fig_scatter.update_traces(
+        hovertemplate=(
+            '<b>%{customdata[0]}</b><br>'
+            'Date: %{customdata[1]}<br>'
+            'Before: %{x:.4f}% (%{customdata[2]} days)<br>'
+            'After: %{y:.4f}% (%{customdata[3]} days)'
+            '<extra></extra>'
+        )
     )
 
-    all_vals = list(crossing_df['Avg_Return_Before_Crossing']) + list(crossing_df['Avg_Return_After_Crossing'])
-    line_min, line_max = min(all_vals), max(all_vals)
-    margin = (line_max - line_min) * 0.05
-    fig_scatter.add_shape(
-        type='line',
-        x0=line_min - margin, y0=line_min - margin,
-        x1=line_max + margin, y1=line_max + margin,
-        line=dict(color='gray', dash='dash', width=1),
-    )
+    all_vals = list(scatter_df['Avg_Return_Before_Crossing']) + list(scatter_df['Avg_Return_After_Crossing'])
+    if all_vals:
+        line_min, line_max = min(all_vals), max(all_vals)
+        margin = (line_max - line_min) * 0.05
+        fig_scatter.add_shape(
+            type='line',
+            x0=line_min - margin, y0=line_min - margin,
+            x1=line_max + margin, y1=line_max + margin,
+            line=dict(color='gray', dash='dash', width=1),
+        )
 
     fig_scatter.update_layout(
         xaxis_title='Avg Daily Return Before Crossing (%)',
@@ -286,6 +296,7 @@ if not crossing_df.empty:
 
     st.plotly_chart(fig_scatter, use_container_width=True)
     st.caption("Points above the diagonal = return improved after crossing. Below = worsened.")
+    st.caption("\\* MCRB excluded due to extreme outlier values.")
 else:
     st.info("No crossing events detected for this ETF and weight range.")
 
