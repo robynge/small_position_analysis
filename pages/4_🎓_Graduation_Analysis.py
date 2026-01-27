@@ -270,21 +270,18 @@ if not crossing_df.empty:
     )
     scatter_src['Date_Str'] = pd.to_datetime(scatter_src['Crossing_Date']).dt.strftime('%m/%d/%Y')
 
-    # Auto-detect outlier tickers: short window (<=2 days) with statistically extreme return
+    # Auto-detect outlier tickers: short window (<=2 days) with return beyond 99.5th percentile
     all_returns = pd.concat([
         scatter_src['Avg_Return_Before_Crossing'],
         scatter_src['Avg_Return_After_Crossing']
-    ])
-    q1, q3 = all_returns.quantile(0.25), all_returns.quantile(0.75)
-    iqr = q3 - q1
-    outlier_bound = 10 * iqr  # 10x IQR from median
-    median = all_returns.median()
-    is_extreme_before = (scatter_src['Avg_Return_Before_Crossing'] - median).abs() > outlier_bound
-    is_extreme_after = (scatter_src['Avg_Return_After_Crossing'] - median).abs() > outlier_bound
+    ]).abs()
+    extreme_threshold = all_returns.quantile(0.995)
     short_before = scatter_src['Days_Before_Crossing'] <= 2
     short_after = scatter_src['Days_After_Crossing'] <= 2
+    extreme_before = scatter_src['Avg_Return_Before_Crossing'].abs() > extreme_threshold
+    extreme_after = scatter_src['Avg_Return_After_Crossing'].abs() > extreme_threshold
     outlier_tickers = scatter_src[
-        (short_before & is_extreme_before) | (short_after & is_extreme_after)
+        (short_before & extreme_before) | (short_after & extreme_after)
     ]['Ticker'].unique().tolist()
 
     outlier_mode = st.radio(
