@@ -158,13 +158,12 @@ col1, col2 = st.columns(2)
 
 with col1:
     fig_hist = go.Figure()
-    fig_hist.add_trace(go.Histogram(x=returns_df['Return_Actual'] * 100, name='Actual', opacity=0.6, marker_color='#3498db', nbinsx=50,
+    fig_hist.add_trace(go.Histogram(x=returns_df['Return_ExcludeSmall'] * 100, name='Excl. Small', opacity=0.5, marker_color='#e74c3c', nbinsx=50,
                                      hovertemplate='Return: %{x:.2f}%<br>Count: %{y}<extra></extra>'))
-    fig_hist.add_trace(go.Histogram(x=returns_df['Return_ExcludeSmall'] * 100, name='Excl. Small', opacity=0.6, marker_color='#e74c3c', nbinsx=50,
+    fig_hist.add_trace(go.Histogram(x=returns_df['Return_SmallOnly'] * 100, name='Small Only', opacity=0.5, marker_color='#2ecc71', nbinsx=50,
                                      hovertemplate='Return: %{x:.2f}%<br>Count: %{y}<extra></extra>'))
-    fig_hist.add_trace(go.Histogram(x=returns_df['Return_SmallOnly'] * 100, name='Small Only', opacity=0.6, marker_color='#2ecc71', nbinsx=50,
-                                     hovertemplate='Return: %{x:.2f}%<br>Count: %{y}<extra></extra>'))
-    fig_hist.update_layout(title='Daily Return Distribution', barmode='overlay', xaxis_title='Return (%)')
+    fig_hist.update_layout(title='Daily Return Distribution', barmode='overlay', xaxis_title='Return (%)',
+                           legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1))
     st.plotly_chart(fig_hist, use_container_width=True)
 
 with col2:
