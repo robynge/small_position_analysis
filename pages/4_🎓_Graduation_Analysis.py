@@ -62,53 +62,25 @@ if not summary:
 # ============================================================================
 st.header("Overview")
 
-col1, col2, col3 = st.columns(3)
-with col1:
-    st.metric("Current Holdings", summary['current_holdings'])
-with col2:
-    st.metric("Total Stocks Ever", summary['total_stocks_ever'])
-with col3:
-    never_crossed = summary['count_native_smaller'] + summary['count_native_small'] + summary['count_native_large']
-    st.metric("Never Crossed Boundary", never_crossed)
+cts = summary.get('crossing_type_counts', {})
+ns, nsm, nl = summary['count_native_smaller'], summary['count_native_small'], summary['count_native_large']
+hs, hr = summary['count_had_starter'], summary['count_had_residual']
+stf, rtg = summary['count_starter_then_fell'], summary['count_residual_then_grew']
 
-col1, col2, col3 = st.columns(3)
-with col1:
-    st.metric("Native Smaller", summary['count_native_smaller'],
-              help=f"Stocks always below {lo}%")
-with col2:
-    st.metric("Native Small", summary['count_native_small'],
-              help=f"Stocks always within {lo}%-{hi}%")
-with col3:
-    st.metric("Native Large", summary['count_native_large'],
-              help=f"Stocks always ≥{hi}%")
+overview_md = f"""
+| | Current Holdings | Total Ever | Native Smaller | Native Small | Native Large | Had Starter | Had Residual | Starter then fell | Residual then grew |
+|---|---|---|---|---|---|---|---|---|---|
+| **Stocks** | {summary['current_holdings']} | {summary['total_stocks_ever']} | {ns} | {nsm} | {nl} | {hs} | {hr} | {stf}/{hs} | {rtg}/{hr} |
+"""
+st.markdown(overview_md)
 
-col1, col2 = st.columns(2)
-with col1:
-    st.metric("Had Starter (any)", summary['count_had_starter'],
-              help="Stocks that had at least one upward crossing (Small/Big/Super Starter)")
-with col2:
-    st.metric("Had Residual (any)", summary['count_had_residual'],
-              help="Stocks that had at least one downward crossing (Small/Big/Super Residual)")
-
-col1, col2 = st.columns(2)
-with col1:
-    st.metric("Starter then fell back",
-              f"{summary['count_starter_then_fell']} / {summary['count_had_starter']}" if summary['count_had_starter'] > 0 else "0",
-              help="Stocks that had an upward crossing then later a downward crossing")
-with col2:
-    st.metric("Residual then grew back",
-              f"{summary['count_residual_then_grew']} / {summary['count_had_residual']}" if summary['count_had_residual'] > 0 else "0",
-              help="Stocks that had a downward crossing then later an upward crossing")
-
-# Crossing type breakdown
-if summary.get('crossing_type_counts'):
-    st.subheader("Crossing Events by Type")
+if cts:
     type_order = ['Small Starter', 'Big Starter', 'Super Starter',
                   'Small Residual', 'Big Residual', 'Super Residual']
-    cols = st.columns(6)
-    for i, ct in enumerate(type_order):
-        with cols[i]:
-            st.metric(ct, summary['crossing_type_counts'].get(ct, 0))
+    header = "| | " + " | ".join(type_order) + " |"
+    sep = "|---|" + "|".join(["---"] * 6) + "|"
+    vals = "| **Events** | " + " | ".join(str(cts.get(t, 0)) for t in type_order) + " |"
+    st.markdown(f"{header}\n{sep}\n{vals}")
 
 st.divider()
 
