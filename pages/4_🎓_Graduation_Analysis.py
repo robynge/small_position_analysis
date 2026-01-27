@@ -161,7 +161,10 @@ if not returns_df.empty:
         yaxis_title='Cumulative P&L ($)',
         xaxis_title='',
         hovermode='x unified',
-        xaxis=dict(rangeslider=dict(visible=True, thickness=0.05)),
+        xaxis=dict(
+            rangeslider=dict(visible=True, thickness=0.05),
+            title=dict(text="Date Range", font=dict(size=11, color='gray'), standoff=0),
+        ),
     )
     fig_area.update_traces(hovertemplate='$%{y:,.2f}')
     st.plotly_chart(fig_area, use_container_width=True)
