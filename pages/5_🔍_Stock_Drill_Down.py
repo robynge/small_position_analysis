@@ -4,6 +4,7 @@ Select a stock to view its weight/price history with crossing events marked
 """
 import streamlit as st
 import pandas as pd
+import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from pathlib import Path
@@ -23,8 +24,6 @@ boundary = selected_range['max']
 st.title("Stock Drill-Down")
 st.markdown(f"**ETF:** {selected_etf} | **Weight Range:** {selected_range['label']} | **Boundary:** {boundary}%")
 
-st.divider()
-
 with st.spinner("Loading data..."):
     crossing_df, returns_df, summary = calculate_crossing_analysis(selected_etf, selected_range)
     full_df = load_etf_data(selected_etf)
@@ -33,19 +32,38 @@ if full_df.empty:
     st.warning("No data available.")
     st.stop()
 
-# Get all tickers, sorted alphabetically
-all_tickers = sorted(full_df['Bloomberg Name'].unique())
+# Build ticker display labels: "Ticker — Company Name (XX% in range)"
+ticker_info = {}
+for ticker in full_df['Bloomberg Name'].unique():
+    tdata = full_df[full_df['Bloomberg Name'] == ticker]
+    company = tdata['Company_Name'].iloc[0] if 'Company_Name' in tdata.columns else ticker
+    total_days = len(tdata)
+    days_in_range = len(tdata[(tdata['Weight'] >= selected_range['min']) &
+                               (tdata['Weight'] < selected_range['max'])])
+    pct_in_range = days_in_range / total_days * 100 if total_days > 0 else 0
+    ticker_info[ticker] = {
+        'company': company,
+        'pct_in_range': pct_in_range,
+        'label': f"{ticker} — {company} ({pct_in_range:.1f}%*)",
+    }
+
+display_labels = sorted(ticker_info.values(), key=lambda x: x['label'])
+label_to_ticker = {v['label']: k for k, v in ticker_info.items()}
+labels = [v['label'] for v in display_labels]
 
 # Default to a ticker that has crossings if possible
 default_idx = 0
 if not crossing_df.empty:
-    first_crossing_ticker = crossing_df.iloc[0]['Ticker']
-    if first_crossing_ticker in all_tickers:
-        default_idx = all_tickers.index(first_crossing_ticker)
+    first_ticker = crossing_df.iloc[0]['Ticker']
+    if first_ticker in ticker_info:
+        target_label = ticker_info[first_ticker]['label']
+        if target_label in labels:
+            default_idx = labels.index(target_label)
 
-selected_ticker = st.selectbox("Select Stock", all_tickers, index=default_idx)
+selected_label = st.selectbox("Select Stock", labels, index=default_idx)
+st.caption(f"\\* Percentage of days the stock's weight fell within the {selected_range['label']} range.")
 
-st.divider()
+selected_ticker = label_to_ticker[selected_label]
 
 # Get data for selected ticker
 ticker_data = full_df[full_df['Bloomberg Name'] == selected_ticker].copy()
@@ -64,7 +82,6 @@ ticker_crossings = crossing_df[crossing_df['Ticker'] == selected_ticker] if not 
 fig = make_subplots(specs=[[{"secondary_y": True}]])
 
 # Insert NaN rows at gaps > 7 days to break the line
-import numpy as np
 ticker_data = ticker_data.copy()
 ticker_data['Gap'] = ticker_data['Date'].diff().dt.days
 gap_rows = ticker_data[ticker_data['Gap'] > 7].index
@@ -113,7 +130,7 @@ fig.add_trace(
     secondary_y=False,
 )
 
-# Add crossing event markers — one trace per direction to keep hover clean
+# Add crossing event markers — one trace per direction
 if not ticker_crossings.empty:
     for direction, color, symbol in [('Starter', '#2ecc71', 'triangle-up'),
                                       ('Residual', '#e74c3c', 'triangle-down')]:
@@ -153,8 +170,6 @@ fig.update_yaxes(title_text='Weight (%)', secondary_y=False)
 fig.update_yaxes(title_text='Price ($)', secondary_y=True)
 
 st.plotly_chart(fig, use_container_width=True)
-
-st.divider()
 
 # ============================================================================
 # Crossing events table for this ticker
