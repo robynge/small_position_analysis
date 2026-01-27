@@ -74,6 +74,7 @@ fig_counts.update_layout(
     xaxis_title='Date',
     yaxis_title='Number of Positions',
     hovermode='x unified',
+    xaxis=dict(hoverformat='%Y-%m-%d'),
     legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1)
 )
 
@@ -178,6 +179,7 @@ if not market_value.empty:
     fig_mv.update_layout(
         title=f'{selected_etf} - {selected_range["label"]} Market Value (Weekly)',
         hovermode='x unified',
+        xaxis=dict(hoverformat='%Y-%m-%d'),
         legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1)
     )
     fig_mv.update_xaxes(title_text='Date')
@@ -225,6 +227,7 @@ if not mv_by_range.empty:
         yaxis_title='% of Total AUM',
         yaxis=dict(range=[0, 100]),
         hovermode='x unified',
+        xaxis=dict(hoverformat='%Y-%m-%d'),
         legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1)
     )
 
@@ -250,6 +253,7 @@ if not mv_by_range.empty:
         xaxis_title='Date',
         yaxis_title='Market Value ($)',
         hovermode='x unified',
+        xaxis=dict(hoverformat='%Y-%m-%d'),
         legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1)
     )
 

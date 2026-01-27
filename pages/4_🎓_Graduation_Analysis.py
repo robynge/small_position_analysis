@@ -147,6 +147,7 @@ if not returns_df.empty:
         yaxis_title=y_label,
         xaxis_title='',
         hovermode='x unified',
+        xaxis=dict(hoverformat='%Y-%m-%d'),
     )
     for trace in fig_cum.data:
         name = trace.name
@@ -188,6 +189,7 @@ if not returns_df.empty:
         xaxis=dict(
             rangeslider=dict(visible=True, thickness=0.1),
             title=dict(text="Date Range", font=dict(size=11, color='gray'), standoff=0),
+            hoverformat='%Y-%m-%d',
         ),
     )
     fig_area.update_traces(hovertemplate='$%{y:,.2f}')

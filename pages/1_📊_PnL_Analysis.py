@@ -104,7 +104,8 @@ fig_line.add_trace(
 fig_line.update_layout(
     title=f'{selected_etf} - {selected_range["label"]} Position P&L',
     hovermode='x unified',
-    legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1)
+    legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
+    xaxis=dict(hoverformat='%Y-%m-%d'),
 )
 fig_line.update_xaxes(title_text='Date')
 fig_line.update_yaxes(title_text='Daily P&L', secondary_y=False)

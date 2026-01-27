@@ -190,6 +190,7 @@ fig.update_layout(
     xaxis=dict(
         rangeslider=dict(visible=True, thickness=0.1),
         title=dict(text="Date Range", font=dict(size=11, color='gray'), standoff=0),
+        hoverformat='%Y-%m-%d',
     ),
 )
 
