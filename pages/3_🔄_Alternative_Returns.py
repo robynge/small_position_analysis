@@ -133,7 +133,8 @@ with col1:
         name='Difference', marker_color=diff_values.apply(lambda x: '#2ecc71' if x >= 0 else '#e74c3c'),
         hovertemplate='%{x}<br>Diff: %{y:.2f}%<extra></extra>'
     ))
-    fig_diff.update_layout(title='Daily Difference (Actual - Exclude)', yaxis_title='%', hovermode='x unified')
+    fig_diff.update_layout(title='Daily Difference (Actual - Exclude)', yaxis_title='%', hovermode='x unified',
+                           xaxis=dict(hoverformat='%Y-%m-%d'))
     st.plotly_chart(fig_diff, use_container_width=True)
 
 with col2:
@@ -144,7 +145,8 @@ with col2:
         name='Small Only', marker_color=small_values.apply(lambda x: '#2ecc71' if x >= 0 else '#e74c3c'),
         hovertemplate='%{x}<br>Return: %{y:.2f}%<extra></extra>'
     ))
-    fig_small.update_layout(title=f'{selected_range["label"]} Only Daily Returns', yaxis_title='%', hovermode='x unified')
+    fig_small.update_layout(title=f'{selected_range["label"]} Only Daily Returns', yaxis_title='%', hovermode='x unified',
+                            xaxis=dict(hoverformat='%Y-%m-%d'))
     st.plotly_chart(fig_small, use_container_width=True)
 
 st.divider()
