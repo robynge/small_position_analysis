@@ -157,8 +157,6 @@ if not returns_df.empty:
 else:
     st.info("No returns data available.")
 
-st.divider()
-
 # ============================================================================
 # Stacked Area — Daily P&L Contribution by Category
 # ============================================================================
@@ -196,8 +194,6 @@ if not returns_df.empty:
     st.plotly_chart(fig_area, use_container_width=True)
 else:
     st.info("No returns data available.")
-
-st.divider()
 
 # ============================================================================
 # Violin — Daily Return Distribution by Category
@@ -297,8 +293,6 @@ if not returns_df.empty:
         st.caption(f"\\* Excluded (daily return beyond 99.99th percentile, >{violin_threshold:.1f}%): {excluded_names}")
 else:
     st.info("No returns data available.")
-
-st.divider()
 
 # ============================================================================
 # Scatter — Before vs After Crossing Returns
@@ -415,8 +409,6 @@ if not crossing_df.empty:
     st.caption(f"Total crossing events: {len(display_crossings)}")
 else:
     st.info("No crossing events detected for this ETF and weight range.")
-
-st.divider()
 
 # ============================================================================
 # Detailed Returns Data
