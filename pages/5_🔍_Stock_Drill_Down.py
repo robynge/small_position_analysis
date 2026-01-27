@@ -76,20 +76,8 @@ if ticker_data.empty:
 # Get crossing events for this ticker
 ticker_crossings = crossing_df[crossing_df['Ticker'] == selected_ticker] if not crossing_df.empty else pd.DataFrame()
 
-# Date range slider
 min_date = ticker_data['Date'].min().to_pydatetime()
 max_date = ticker_data['Date'].max().to_pydatetime()
-date_range = st.slider("Date Range", min_value=min_date, max_value=max_date,
-                        value=(min_date, max_date), key="drilldown_date_range")
-
-# Filter ticker data and crossings by selected date range
-ticker_data = ticker_data[(ticker_data['Date'] >= date_range[0]) &
-                           (ticker_data['Date'] <= date_range[1])].copy()
-if not ticker_crossings.empty:
-    ticker_crossings = ticker_crossings[
-        (ticker_crossings['Crossing_Date'] >= date_range[0]) &
-        (ticker_crossings['Crossing_Date'] <= date_range[1])
-    ]
 
 # ============================================================================
 # Dual-axis chart: Weight + Price with crossing arrows
@@ -180,9 +168,19 @@ fig.update_layout(
     title=f"{selected_ticker}",
     hovermode='x unified',
     legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
+    margin=dict(b=10),
 )
 
-st.plotly_chart(fig, use_container_width=True)
+# Use placeholder so chart appears above the slider
+chart_placeholder = st.empty()
+
+# Date range slider directly below the chart
+date_range = st.slider("Date Range", min_value=min_date, max_value=max_date,
+                        value=(min_date, max_date), key="drilldown_date_range",
+                        label_visibility="collapsed")
+fig.update_xaxes(range=[date_range[0], date_range[1]])
+
+chart_placeholder.plotly_chart(fig, use_container_width=True)
 
 # ============================================================================
 # Crossing events table for this ticker
