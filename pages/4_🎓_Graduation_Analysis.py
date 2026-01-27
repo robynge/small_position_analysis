@@ -22,13 +22,6 @@ boundary = selected_range['max']
 
 st.title("Crossing Analysis")
 st.markdown(f"**ETF:** {selected_etf} | **Weight Range:** {selected_range['label']} | **Boundary:** {boundary}%")
-st.markdown("""
-Classifies stocks by how they relate to the weight range boundary:
-- **Starter**: crossed from small to large (upward)
-- **Residual**: crossed from large to small (downward)
-- **Native Small**: always within range, never crossed
-- **Native Large**: always above range, never crossed
-""")
 
 st.divider()
 
@@ -39,6 +32,47 @@ if not summary:
     st.warning("No data available for the selected ETF and weight range.")
     st.stop()
 
+# ============================================================================
+# Summary Metrics
+# ============================================================================
+st.header("Overview")
+
+col1, col2, col3 = st.columns(3)
+with col1:
+    st.metric("Current Holdings", summary['current_holdings'])
+with col2:
+    st.metric("Total Stocks Ever", summary['total_stocks_ever'])
+with col3:
+    never_crossed = summary['count_native_small'] + summary['count_native_large']
+    st.metric("Never Crossed Boundary", never_crossed)
+
+col1, col2, col3, col4 = st.columns(4)
+with col1:
+    st.metric("Native Small", summary['count_native_small'])
+with col2:
+    st.metric("Native Large", summary['count_native_large'])
+with col3:
+    st.metric("Had Starter", summary['count_had_starter'],
+              help="Stocks that crossed upward (small to large) at least once")
+with col4:
+    st.metric("Had Residual", summary['count_had_residual'],
+              help="Stocks that crossed downward (large to small) at least once")
+
+col1, col2 = st.columns(2)
+with col1:
+    st.metric("Starter then fell back",
+              f"{summary['count_starter_then_fell']} / {summary['count_had_starter']}" if summary['count_had_starter'] > 0 else "0",
+              help="Stocks that crossed up then later crossed back down")
+with col2:
+    st.metric("Residual then grew back",
+              f"{summary['count_residual_then_grew']} / {summary['count_had_residual']}" if summary['count_had_residual'] > 0 else "0",
+              help="Stocks that crossed down then later crossed back up")
+
+st.divider()
+
+# ============================================================================
+# Cumulative Return by Category
+# ============================================================================
 category_order = ['Starter', 'Residual', 'Native Small', 'Native Large']
 color_map = {
     'Starter': '#3498db',
@@ -47,13 +81,9 @@ color_map = {
     'Native Large': '#2ecc71',
 }
 
-# ============================================================================
-# 1. Cumulative Return by Category (line chart)
-# ============================================================================
 st.header("Cumulative Return by Category")
 
 if not returns_df.empty:
-    # Daily weighted-average return per category, then cumulate
     daily_cat = returns_df.groupby(['Date', 'Period'])['Daily_Return'].mean().reset_index()
     daily_cat = daily_cat.sort_values('Date')
     daily_cat['Cumulative_Return'] = daily_cat.groupby('Period')['Daily_Return'].cumsum() * 100
@@ -79,7 +109,7 @@ else:
 st.divider()
 
 # ============================================================================
-# 2. Stacked Area — Daily P&L Contribution by Category
+# Stacked Area — Daily P&L Contribution by Category
 # ============================================================================
 st.header("Daily P&L Contribution by Category")
 
@@ -109,7 +139,7 @@ else:
 st.divider()
 
 # ============================================================================
-# 3. Violin — Daily Return Distribution by Category
+# Violin — Daily Return Distribution by Category
 # ============================================================================
 st.header("Daily Return Distribution by Category")
 
@@ -133,7 +163,6 @@ if not returns_df.empty:
     )
     fig_violin.update_traces(hovertemplate='%{y:.4f}%<extra></extra>')
 
-    # Add count + mean annotations
     for period in category_order:
         subset = plot_df[plot_df['Period'] == period]['Daily_Return_%']
         if len(subset) == 0:
@@ -156,7 +185,7 @@ else:
 st.divider()
 
 # ============================================================================
-# 4. Scatter — Before vs After Crossing Returns
+# Scatter — Before vs After Crossing Returns
 # ============================================================================
 st.header("Crossing Events: Before vs After Return")
 
@@ -175,7 +204,6 @@ if not crossing_df.empty:
                     'Avg_Return_After_Crossing': ':.4f'},
     )
 
-    # Add diagonal reference line (before == after)
     all_vals = list(crossing_df['Avg_Return_Before_Crossing']) + list(crossing_df['Avg_Return_After_Crossing'])
     line_min, line_max = min(all_vals), max(all_vals)
     margin = (line_max - line_min) * 0.05
@@ -199,7 +227,7 @@ else:
 st.divider()
 
 # ============================================================================
-# 3. Crossing Events Table
+# Crossing Events Table
 # ============================================================================
 st.header("Crossing Events Data")
 
@@ -226,7 +254,7 @@ else:
 st.divider()
 
 # ============================================================================
-# 4. Detailed Returns Data
+# Detailed Returns Data
 # ============================================================================
 st.header("Detailed Returns Data")
 

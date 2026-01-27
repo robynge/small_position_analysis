@@ -444,11 +444,13 @@ def calculate_crossing_analysis(etf_name: str, weight_range: dict) -> tuple:
     df['Daily_Return'] = (df['Stock_Price'] - df['Yesterday_Price']) / df['Yesterday_Price']
     df['Daily_PnL'] = df['Yesterday_Position'] * (df['Stock_Price'] - df['Yesterday_Price'])
 
-    # Detect crossings per ticker
+    # Detect crossings per ticker and assign per-day Period labels
     crossing_records = []
-    ticker_first_direction = {}  # ticker -> first crossing direction
+    ticker_has_crossings = set()
+    period_labels = {}  # df original index -> period string
 
     for ticker, group in df.groupby('Bloomberg Name'):
+        orig_idx = group.index.tolist()  # preserve df's original index
         group = group.sort_values('Date').reset_index(drop=True)
         valid = group['Yesterday_Weight'].notna()
         yesterday_large = group['Yesterday_Weight'] >= boundary
@@ -456,16 +458,31 @@ def calculate_crossing_analysis(etf_name: str, weight_range: dict) -> tuple:
         crossed = valid & (yesterday_large != today_large)
 
         crossing_indices = group.index[crossed].tolist()
+
         if not crossing_indices:
+            period = 'Native Large' if (group['Weight'] >= boundary).all() else 'Native Small'
+            for oi in orig_idx:
+                period_labels[oi] = period
             continue
+
+        ticker_has_crossings.add(ticker)
 
         crossings_for_ticker = []
         for idx in crossing_indices:
             row = group.loc[idx]
             direction = 'Starter' if row['Weight'] >= boundary else 'Residual'
-            crossings_for_ticker.append({'idx': group.index.get_loc(idx), 'date': row['Date'], 'direction': direction})
+            crossings_for_ticker.append({'idx': idx, 'date': row['Date'], 'direction': direction})
 
-        ticker_first_direction[ticker] = crossings_for_ticker[0]['direction']
+        # Assign Period per segment: before first crossing = Native, after each crossing = its direction
+        first_side = 'Native Large' if group.iloc[0]['Weight'] >= boundary else 'Native Small'
+        segments = [(0, crossings_for_ticker[0]['idx'] - 1, first_side)]
+        for ci, crossing in enumerate(crossings_for_ticker):
+            end_idx = crossings_for_ticker[ci + 1]['idx'] - 1 if ci < len(crossings_for_ticker) - 1 else len(group) - 1
+            segments.append((crossing['idx'], end_idx, crossing['direction']))
+
+        for start, end, period in segments:
+            for i in range(start, end + 1):
+                period_labels[orig_idx[i]] = period
 
         # Build crossing_df records with before/after windows
         for ci, crossing in enumerate(crossings_for_ticker):
@@ -487,28 +504,45 @@ def calculate_crossing_analysis(etf_name: str, weight_range: dict) -> tuple:
 
     crossing_df = pd.DataFrame(crossing_records)
 
-    # Build returns_df with Period labels (vectorized)
-    # Classify each ticker: crossed tickers use first direction, others are Native
-    all_large = df.groupby('Bloomberg Name')['Weight'].apply(lambda w: (w >= boundary).all())
-    ticker_period = {}
-    for ticker in df['Bloomberg Name'].unique():
-        if ticker in ticker_first_direction:
-            ticker_period[ticker] = ticker_first_direction[ticker]
-        elif all_large[ticker]:
-            ticker_period[ticker] = 'Native Large'
-        else:
-            ticker_period[ticker] = 'Native Small'
-
-    returns_df = df[df['Daily_Return'].notna()][['Date', 'Bloomberg Name', 'Weight', 'Daily_Return', 'Daily_PnL']].copy()
+    # Build returns_df
+    df['Period'] = df.index.map(period_labels)
+    returns_df = df[df['Daily_Return'].notna()][['Date', 'Bloomberg Name', 'Weight', 'Daily_Return', 'Daily_PnL', 'Period']].copy()
     returns_df.rename(columns={'Bloomberg Name': 'Ticker'}, inplace=True)
-    returns_df['Period'] = returns_df['Ticker'].map(ticker_period)
 
-    # Build category_summary from ticker_period (single source of truth)
-    period_counts = pd.Series(ticker_period).value_counts()
-    category_summary = {}
+    # Build category_summary
+    all_tickers = set(df['Bloomberg Name'].unique())
+    native_tickers = all_tickers - ticker_has_crossings
+    native_small = sum(1 for t in native_tickers
+                       if not (df.loc[df['Bloomberg Name'] == t, 'Weight'] >= boundary).all())
+    native_large = len(native_tickers) - native_small
+
+    # Current holdings (last date)
+    last_date = df['Date'].max()
+    current_holdings = df[df['Date'] == last_date]['Bloomberg Name'].nunique()
+
+    # Per-ticker crossing directions
+    ticker_directions = {}  # ticker -> set of directions
+    if not crossing_df.empty:
+        for ticker, grp in crossing_df.groupby('Ticker'):
+            ticker_directions[ticker] = set(grp['Direction'])
+
+    had_starter = {t for t, dirs in ticker_directions.items() if 'Starter' in dirs}
+    had_residual = {t for t, dirs in ticker_directions.items() if 'Residual' in dirs}
+    starter_then_fell = had_starter & had_residual  # had Starter, then also had Residual
+    residual_then_grew = had_residual & had_starter  # had Residual, then also had Starter
+
+    category_summary = {
+        'current_holdings': current_holdings,
+        'total_stocks_ever': len(all_tickers),
+        'count_native_small': native_small,
+        'count_native_large': native_large,
+        'count_had_starter': len(had_starter),
+        'count_had_residual': len(had_residual),
+        'count_starter_then_fell': len(starter_then_fell),
+        'count_residual_then_grew': len(residual_then_grew),
+    }
     for period, key in [('Starter', 'starter'), ('Residual', 'residual'),
                         ('Native Small', 'native_small'), ('Native Large', 'native_large')]:
-        category_summary[f'count_{key}'] = int(period_counts.get(period, 0))
         subset = returns_df.loc[returns_df['Period'] == period, 'Daily_Return']
         category_summary[f'mean_return_{key}'] = subset.mean() * 100 if len(subset) > 0 else 0
 
