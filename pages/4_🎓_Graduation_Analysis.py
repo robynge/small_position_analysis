@@ -254,16 +254,16 @@ if not returns_df.empty:
             fillcolor='rgba(0,0,0,0)',
             width=0.3,
             showlegend=False,
-            hoverinfo='skip',
+            hovertemplate=(
+                f'<b>{period}</b><br>'
+                f'n={len(subset):,}<br>'
+                f'mean={subset.mean():.2f}%<br>'
+                f'median={median:.2f}%<br>'
+                f'Q1={q1:.2f}% Q3={q3:.2f}%<br>'
+                f'range=[{whisker_lo:.2f}%, {whisker_hi:.2f}%]'
+                '<extra></extra>'
+            ),
         ))
-        fig_dist.add_annotation(
-            x=period,
-            y=whisker_hi,
-            text=f"n={len(subset):,}  mean={subset.mean():.2f}%",
-            showarrow=False,
-            font=dict(size=11),
-            yshift=15,
-        )
 
     fig_dist.update_layout(
         yaxis_title='Daily Return (%)',
