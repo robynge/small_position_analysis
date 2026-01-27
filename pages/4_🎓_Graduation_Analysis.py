@@ -272,7 +272,8 @@ if not returns_df.empty:
                 f'median: {median:.2f}%<br>'
                 f'q1: {q1:.2f}%<br>'
                 f'min: {whisker_lo:.2f}%<br>'
-                f'n={len(subset):,}  mean={subset.mean():.2f}%'
+                f'n: {len(subset):,}<br>'
+                f'mean: {subset.mean():.2f}%'
                 '<extra></extra>'
             ),
         ))
