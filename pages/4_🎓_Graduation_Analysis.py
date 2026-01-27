@@ -223,26 +223,7 @@ if not returns_df.empty:
     if violin_outlier_mode == "Exclude Outliers" and violin_outlier_tickers:
         plot_df = plot_df[~plot_df['Ticker'].isin(violin_outlier_tickers)].copy()
 
-    fig_dist = go.Figure()
-
-    # Box plot first (behind strip points)
-    for period in active_order:
-        subset = plot_df[plot_df['Period'] == period]['Daily_Return_%']
-        if len(subset) == 0:
-            continue
-        fig_dist.add_trace(go.Box(
-            y=subset,
-            name=period,
-            boxpoints=False,
-            marker_color=color_map.get(period, '#999'),
-            line=dict(color='white', width=1.5),
-            fillcolor='rgba(0,0,0,0)',
-            width=0.5,
-            showlegend=False,
-        ))
-
-    # Strip points on top
-    strip_fig = px.strip(
+    fig_dist = px.strip(
         plot_df,
         x='Period',
         y='Daily_Return_%',
@@ -250,14 +231,32 @@ if not returns_df.empty:
         category_orders={'Period': active_order},
         color_discrete_map=color_map,
     )
-    for trace in strip_fig.data:
-        trace.marker.size = 3
-        trace.marker.opacity = 0.4
-        trace.jitter = 0.4
-        trace.hoverinfo = 'skip'
-        trace.hovertemplate = None
-        trace.showlegend = False
-        fig_dist.add_trace(trace)
+    fig_dist.update_traces(
+        marker=dict(size=3, opacity=0.4),
+        jitter=0.4,
+        hoverinfo='skip',
+        hovertemplate=None,
+    )
+
+    # Overlay box plot
+    for period in active_order:
+        subset = plot_df[plot_df['Period'] == period]['Daily_Return_%']
+        if len(subset) == 0:
+            continue
+        q1, median, q3 = subset.quantile(0.25), subset.median(), subset.quantile(0.75)
+        iqr = q3 - q1
+        whisker_lo = max(subset.min(), q1 - 1.5 * iqr)
+        whisker_hi = min(subset.max(), q3 + 1.5 * iqr)
+        fig_dist.add_trace(go.Box(
+            x=[period], q1=[q1], median=[median], q3=[q3],
+            lowerfence=[whisker_lo], upperfence=[whisker_hi],
+            marker_color='rgba(255,255,255,0.6)',
+            line=dict(color='white', width=1.5),
+            fillcolor='rgba(0,0,0,0)',
+            width=0.5,
+            showlegend=False,
+            hovertemplate='%{y:.2f}%<extra></extra>',
+        ))
 
     fig_dist.update_layout(
         yaxis_title='Daily Return (%)',
