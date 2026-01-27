@@ -39,8 +39,77 @@ if not summary:
     st.warning("No data available for the selected ETF and weight range.")
     st.stop()
 
+category_order = ['Starter', 'Residual', 'Native Small', 'Native Large']
+color_map = {
+    'Starter': '#3498db',
+    'Residual': '#e74c3c',
+    'Native Small': '#95a5a6',
+    'Native Large': '#2ecc71',
+}
+
 # ============================================================================
-# 1. Box Plot — Daily Return Distribution by Period
+# 1. Cumulative Return by Category (line chart)
+# ============================================================================
+st.header("Cumulative Return by Category")
+
+if not returns_df.empty:
+    # Daily weighted-average return per category, then cumulate
+    daily_cat = returns_df.groupby(['Date', 'Period'])['Daily_Return'].mean().reset_index()
+    daily_cat = daily_cat.sort_values('Date')
+    daily_cat['Cumulative_Return'] = daily_cat.groupby('Period')['Daily_Return'].cumsum() * 100
+
+    fig_cum = px.line(
+        daily_cat,
+        x='Date',
+        y='Cumulative_Return',
+        color='Period',
+        category_orders={'Period': category_order},
+        color_discrete_map=color_map,
+    )
+    fig_cum.update_layout(
+        yaxis_title='Cumulative Return (%)',
+        xaxis_title='',
+        hovermode='x unified',
+    )
+    fig_cum.update_traces(hovertemplate='%{y:.4f}%')
+    st.plotly_chart(fig_cum, use_container_width=True)
+else:
+    st.info("No returns data available.")
+
+st.divider()
+
+# ============================================================================
+# 2. Stacked Area — Daily P&L Contribution by Category
+# ============================================================================
+st.header("Daily P&L Contribution by Category")
+
+if not returns_df.empty:
+    daily_pnl = returns_df.groupby(['Date', 'Period'])['Daily_PnL'].sum().reset_index()
+    daily_pnl = daily_pnl.sort_values('Date')
+    daily_pnl['Cumulative_PnL'] = daily_pnl.groupby('Period')['Daily_PnL'].cumsum()
+
+    fig_area = px.area(
+        daily_pnl,
+        x='Date',
+        y='Cumulative_PnL',
+        color='Period',
+        category_orders={'Period': category_order},
+        color_discrete_map=color_map,
+    )
+    fig_area.update_layout(
+        yaxis_title='Cumulative P&L ($)',
+        xaxis_title='',
+        hovermode='x unified',
+    )
+    fig_area.update_traces(hovertemplate='$%{y:,.2f}')
+    st.plotly_chart(fig_area, use_container_width=True)
+else:
+    st.info("No returns data available.")
+
+st.divider()
+
+# ============================================================================
+# 3. Violin — Daily Return Distribution by Category
 # ============================================================================
 st.header("Daily Return Distribution by Category")
 
@@ -48,52 +117,46 @@ if not returns_df.empty:
     plot_df = returns_df.copy()
     plot_df['Daily_Return_%'] = plot_df['Daily_Return'] * 100
 
-    # Order categories and assign colors
-    category_order = ['Starter', 'Residual', 'Native Small', 'Native Large']
-    color_map = {
-        'Starter': '#3498db',
-        'Residual': '#e74c3c',
-        'Native Small': '#95a5a6',
-        'Native Large': '#2ecc71',
-    }
-
-    fig_box = px.box(
+    fig_violin = px.violin(
         plot_df,
         x='Period',
         y='Daily_Return_%',
         color='Period',
+        box=True,
         category_orders={'Period': category_order},
         color_discrete_map=color_map,
     )
-    fig_box.update_layout(
+    fig_violin.update_layout(
         yaxis_title='Daily Return (%)',
         xaxis_title='',
         showlegend=False,
     )
-    fig_box.update_traces(hovertemplate='%{y:.4f}%<extra></extra>')
+    fig_violin.update_traces(hovertemplate='%{y:.4f}%<extra></extra>')
 
-    # Add count + mean annotations above each box
+    # Add count + mean annotations
     for period in category_order:
         subset = plot_df[plot_df['Period'] == period]['Daily_Return_%']
         if len(subset) == 0:
             continue
-        fig_box.add_annotation(
+        q75 = subset.quantile(0.75)
+        iqr = q75 - subset.quantile(0.25)
+        fig_violin.add_annotation(
             x=period,
-            y=subset.quantile(0.75) + 1.5 * (subset.quantile(0.75) - subset.quantile(0.25)),
-            text=f"n={len(subset):,}<br>mean={subset.mean():.4f}%",
+            y=q75 + 1.5 * iqr,
+            text=f"n={len(subset):,}  mean={subset.mean():.4f}%",
             showarrow=False,
             font=dict(size=11),
             yshift=15,
         )
 
-    st.plotly_chart(fig_box, use_container_width=True)
+    st.plotly_chart(fig_violin, use_container_width=True)
 else:
     st.info("No returns data available.")
 
 st.divider()
 
 # ============================================================================
-# 2. Scatter — Before vs After Crossing Returns
+# 4. Scatter — Before vs After Crossing Returns
 # ============================================================================
 st.header("Crossing Events: Before vs After Return")
 
