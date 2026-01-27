@@ -159,3 +159,30 @@ if not crossing_df.empty:
     st.caption(f"Total crossing events: {len(filtered_crossings)}")
 else:
     st.info("No crossing events detected for this ETF and weight range.")
+
+st.divider()
+
+# ============================================================================
+# 4. Detailed Returns Data
+# ============================================================================
+st.header("Detailed Returns Data")
+
+if not returns_df.empty:
+    period_filter = st.multiselect(
+        "Filter by Period",
+        options=sorted(returns_df['Period'].unique()),
+        default=sorted(returns_df['Period'].unique()),
+        key='returns_period_filter'
+    )
+
+    filtered_returns = returns_df[returns_df['Period'].isin(period_filter)].copy()
+    filtered_returns['Daily_Return_%'] = filtered_returns['Daily_Return'] * 100
+
+    display_cols = filtered_returns[['Date', 'Ticker', 'Weight', 'Daily_Return_%', 'Daily_PnL', 'Period']].copy()
+    display_cols['Weight'] = display_cols['Weight'].round(2)
+    display_cols['Daily_Return_%'] = display_cols['Daily_Return_%'].round(2)
+    display_cols['Daily_PnL'] = display_cols['Daily_PnL'].round(2)
+    display_cols = display_cols.sort_values('Date', ascending=False)
+    st.dataframe(display_cols, use_container_width=True, height=400)
+else:
+    st.info("No returns data available.")
