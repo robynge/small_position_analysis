@@ -307,12 +307,12 @@ if not crossing_df.empty:
     )
     scatter_src['Date_Str'] = pd.to_datetime(scatter_src['Crossing_Date']).dt.strftime('%m/%d/%Y')
 
-    # Auto-detect outlier tickers: short window (<=2 days) with return beyond 99.99th percentile
+    # Auto-detect outlier tickers: short window (<=2 days) with return beyond 99.5th percentile
     all_returns = pd.concat([
         scatter_src['Avg_Return_Before_Crossing'],
         scatter_src['Avg_Return_After_Crossing']
     ]).abs()
-    extreme_threshold = all_returns.quantile(0.9999)
+    extreme_threshold = all_returns.quantile(0.995)
     short_before = scatter_src['Days_Before_Crossing'] <= 2
     short_after = scatter_src['Days_After_Crossing'] <= 2
     extreme_before = scatter_src['Avg_Return_Before_Crossing'].abs() > extreme_threshold
