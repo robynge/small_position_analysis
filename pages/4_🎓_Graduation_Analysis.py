@@ -113,7 +113,10 @@ if not returns_df.empty:
     active_order = [c for c in category_order if c in existing_periods]
 
     daily_cat = returns_df.groupby(['Date', 'Period'])['Daily_Return'].mean().reset_index()
-    daily_cat = daily_cat.sort_values('Date')
+    # Fill missing date/period combos with 0 so cumsum carries forward
+    all_dates = sorted(daily_cat['Date'].unique())
+    full_idx = pd.MultiIndex.from_product([all_dates, active_order], names=['Date', 'Period'])
+    daily_cat = daily_cat.set_index(['Date', 'Period']).reindex(full_idx, fill_value=0).reset_index()
     daily_cat['Cumulative_Return'] = daily_cat.groupby('Period')['Daily_Return'].cumsum() * 100
 
     fig_cum = px.line(
@@ -146,7 +149,9 @@ if not returns_df.empty:
     active_order = [c for c in category_order if c in existing_periods]
 
     daily_pnl = returns_df.groupby(['Date', 'Period'])['Daily_PnL'].sum().reset_index()
-    daily_pnl = daily_pnl.sort_values('Date')
+    all_dates = sorted(daily_pnl['Date'].unique())
+    full_idx = pd.MultiIndex.from_product([all_dates, active_order], names=['Date', 'Period'])
+    daily_pnl = daily_pnl.set_index(['Date', 'Period']).reindex(full_idx, fill_value=0).reset_index()
     daily_pnl['Cumulative_PnL'] = daily_pnl.groupby('Period')['Daily_PnL'].cumsum()
 
     fig_area = px.area(
