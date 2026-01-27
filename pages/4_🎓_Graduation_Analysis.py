@@ -40,55 +40,105 @@ if not summary:
     st.stop()
 
 # ============================================================================
-# Summary Metric Cards
+# 1. Box Plot — Daily Return Distribution by Period
 # ============================================================================
-st.header("Category Counts")
+st.header("Daily Return Distribution by Category")
 
-col1, col2, col3, col4 = st.columns(4)
-with col1:
-    st.metric("Starter", summary['count_starter'])
-with col2:
-    st.metric("Residual", summary['count_residual'])
-with col3:
-    st.metric("Native Small", summary['count_native_small'])
-with col4:
-    st.metric("Native Large", summary['count_native_large'])
+if not returns_df.empty:
+    plot_df = returns_df.copy()
+    plot_df['Daily_Return_%'] = plot_df['Daily_Return'] * 100
+
+    # Order categories and assign colors
+    category_order = ['Starter', 'Residual', 'Native Small', 'Native Large']
+    color_map = {
+        'Starter': '#3498db',
+        'Residual': '#e74c3c',
+        'Native Small': '#95a5a6',
+        'Native Large': '#2ecc71',
+    }
+
+    fig_box = px.box(
+        plot_df,
+        x='Period',
+        y='Daily_Return_%',
+        color='Period',
+        category_orders={'Period': category_order},
+        color_discrete_map=color_map,
+    )
+    fig_box.update_layout(
+        yaxis_title='Daily Return (%)',
+        xaxis_title='',
+        showlegend=False,
+    )
+    fig_box.update_traces(hovertemplate='%{y:.4f}%<extra></extra>')
+
+    # Add count + mean annotations above each box
+    for period in category_order:
+        subset = plot_df[plot_df['Period'] == period]['Daily_Return_%']
+        if len(subset) == 0:
+            continue
+        fig_box.add_annotation(
+            x=period,
+            y=subset.quantile(0.75) + 1.5 * (subset.quantile(0.75) - subset.quantile(0.25)),
+            text=f"n={len(subset):,}<br>mean={subset.mean():.4f}%",
+            showarrow=False,
+            font=dict(size=11),
+            yshift=15,
+        )
+
+    st.plotly_chart(fig_box, use_container_width=True)
+else:
+    st.info("No returns data available.")
 
 st.divider()
 
 # ============================================================================
-# Mean Daily Return Comparison
+# 2. Scatter — Before vs After Crossing Returns
 # ============================================================================
-st.header("Mean Daily Return by Category")
+st.header("Crossing Events: Before vs After Return")
 
-categories = ['Starter', 'Residual', 'Native Small', 'Native Large']
-mean_returns = [
-    summary['mean_return_starter'],
-    summary['mean_return_residual'],
-    summary['mean_return_native_small'],
-    summary['mean_return_native_large'],
-]
-colors = ['#3498db', '#e74c3c', '#95a5a6', '#2ecc71']
+if not crossing_df.empty:
+    color_map_dir = {'Starter': '#3498db', 'Residual': '#e74c3c'}
 
-fig_bar = go.Figure()
-fig_bar.add_trace(go.Bar(
-    x=categories,
-    y=mean_returns,
-    marker_color=colors,
-    hovertemplate='%{x}<br>Mean Daily Return: %{y:.4f}%<extra></extra>'
-))
-fig_bar.update_layout(
-    yaxis_title='Mean Daily Return (%)',
-    xaxis_title='Category',
-)
-st.plotly_chart(fig_bar, use_container_width=True)
+    fig_scatter = px.scatter(
+        crossing_df,
+        x='Avg_Return_Before_Crossing',
+        y='Avg_Return_After_Crossing',
+        color='Direction',
+        color_discrete_map=color_map_dir,
+        hover_data={'Ticker': True, 'Crossing_Date': True,
+                    'Days_Before_Crossing': True, 'Days_After_Crossing': True,
+                    'Avg_Return_Before_Crossing': ':.4f',
+                    'Avg_Return_After_Crossing': ':.4f'},
+    )
+
+    # Add diagonal reference line (before == after)
+    all_vals = list(crossing_df['Avg_Return_Before_Crossing']) + list(crossing_df['Avg_Return_After_Crossing'])
+    line_min, line_max = min(all_vals), max(all_vals)
+    margin = (line_max - line_min) * 0.05
+    fig_scatter.add_shape(
+        type='line',
+        x0=line_min - margin, y0=line_min - margin,
+        x1=line_max + margin, y1=line_max + margin,
+        line=dict(color='gray', dash='dash', width=1),
+    )
+
+    fig_scatter.update_layout(
+        xaxis_title='Avg Daily Return Before Crossing (%)',
+        yaxis_title='Avg Daily Return After Crossing (%)',
+    )
+
+    st.plotly_chart(fig_scatter, use_container_width=True)
+    st.caption("Points above the diagonal = return improved after crossing. Below = worsened.")
+else:
+    st.info("No crossing events detected for this ETF and weight range.")
 
 st.divider()
 
 # ============================================================================
-# Crossing Events Table
+# 3. Crossing Events Table
 # ============================================================================
-st.header("Crossing Events")
+st.header("Crossing Events Data")
 
 if not crossing_df.empty:
     direction_filter = st.multiselect(
@@ -109,30 +159,3 @@ if not crossing_df.empty:
     st.caption(f"Total crossing events: {len(filtered_crossings)}")
 else:
     st.info("No crossing events detected for this ETF and weight range.")
-
-st.divider()
-
-# ============================================================================
-# Detailed Returns Data
-# ============================================================================
-st.header("Detailed Returns Data")
-
-if not returns_df.empty:
-    period_filter = st.multiselect(
-        "Filter by Period",
-        options=sorted(returns_df['Period'].unique()),
-        default=sorted(returns_df['Period'].unique()),
-        key='returns_period_filter'
-    )
-
-    filtered_returns = returns_df[returns_df['Period'].isin(period_filter)].copy()
-    filtered_returns['Daily_Return_%'] = filtered_returns['Daily_Return'] * 100
-
-    display_cols = filtered_returns[['Date', 'Ticker', 'Weight', 'Daily_Return_%', 'Daily_PnL', 'Period']].copy()
-    display_cols['Weight'] = display_cols['Weight'].round(2)
-    display_cols['Daily_Return_%'] = display_cols['Daily_Return_%'].round(2)
-    display_cols['Daily_PnL'] = display_cols['Daily_PnL'].round(2)
-    display_cols = display_cols.sort_values('Date', ascending=False)
-    st.dataframe(display_cols, use_container_width=True, height=400)
-else:
-    st.info("No returns data available.")
