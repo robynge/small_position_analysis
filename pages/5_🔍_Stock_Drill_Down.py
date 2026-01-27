@@ -165,7 +165,7 @@ fig.update_layout(
     title=f"{selected_ticker}",
     hovermode='x unified',
     legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
-    xaxis=dict(rangeslider=dict(visible=True), type='date'),
+    xaxis=dict(rangeslider=dict(visible=True, thickness=0.05), type='date'),
 )
 
 st.plotly_chart(fig, use_container_width=True)
