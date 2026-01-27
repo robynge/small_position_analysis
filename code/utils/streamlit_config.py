@@ -31,6 +31,9 @@ WEIGHT_RANGES = [
     {'min': 1, 'max': 2.5, 'label': '1-2.5%', 'folder': '1_to_2.5pct'},
     {'min': 2.5, 'max': 5, 'label': '2.5-5%', 'folder': '2.5_to_5pct'},
     {'min': 5, 'max': 7.5, 'label': '5-7.5%', 'folder': '5_to_7.5pct'},
+    {'min': 0, 'max': 2.5, 'label': '<2.5%', 'folder': 'under_2.5pct'},
+    {'min': 0, 'max': 5, 'label': '<5%', 'folder': 'under_5pct'},
+    {'min': 0, 'max': 7.5, 'label': '<7.5%', 'folder': 'under_7.5pct'},
 ]
 
 # ============================================================================
