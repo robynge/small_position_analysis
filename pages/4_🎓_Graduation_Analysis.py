@@ -112,7 +112,21 @@ if not returns_df.empty:
     existing_periods = returns_df['Period'].unique().tolist()
     active_order = [c for c in category_order if c in existing_periods]
 
-    daily_cat = returns_df.groupby(['Date', 'Period'])['Daily_Return'].mean().reset_index()
+    weighting_mode = st.radio(
+        "Weighting",
+        options=["Without Weighting", "With Weighting"],
+        horizontal=True,
+        key="cum_return_weighting",
+    )
+
+    if weighting_mode == "Without Weighting":
+        daily_cat = returns_df.groupby(['Date', 'Period'])['Daily_Return'].mean().reset_index()
+    else:
+        weighted = returns_df.copy()
+        weighted['Weighted_Return'] = weighted['Daily_Return'] * weighted['Weight']
+        daily_cat = weighted.groupby(['Date', 'Period'])['Weighted_Return'].sum().reset_index()
+        daily_cat.rename(columns={'Weighted_Return': 'Daily_Return'}, inplace=True)
+
     # Fill missing date/period combos with 0 so cumsum carries forward
     all_dates = sorted(daily_cat['Date'].unique())
     full_idx = pd.MultiIndex.from_product([all_dates, active_order], names=['Date', 'Period'])
@@ -127,8 +141,9 @@ if not returns_df.empty:
         category_orders={'Period': active_order},
         color_discrete_map=color_map,
     )
+    y_label = 'Cumulative Weighted Return (%)' if weighting_mode == "With Weighting" else 'Cumulative Return (%)'
     fig_cum.update_layout(
-        yaxis_title='Cumulative Return (%)',
+        yaxis_title=y_label,
         xaxis_title='',
         hovermode='x unified',
     )
