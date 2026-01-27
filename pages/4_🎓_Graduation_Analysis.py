@@ -148,7 +148,10 @@ if not returns_df.empty:
         xaxis_title='',
         hovermode='x unified',
     )
-    fig_cum.update_traces(hovertemplate='%{y:.2f}%')
+    for trace in fig_cum.data:
+        name = trace.name
+        pad = '&nbsp;' * max(0, 20 - len(name))
+        trace.hovertemplate = f'{pad}%{{y:>8.2f}}%'
     st.plotly_chart(fig_cum, use_container_width=True)
 else:
     st.info("No returns data available.")
@@ -274,7 +277,7 @@ if not returns_df.empty:
                 f'Q1:&nbsp;&nbsp;&nbsp;&nbsp;{q1:>8.2f}%<br>'
                 f'Min:&nbsp;&nbsp;&nbsp;{whisker_lo:>8.2f}%<br>'
                 f'Mean:&nbsp;&nbsp;{subset.mean():>8.2f}%<br>'
-                f'N:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{len(subset):>6,}'
+                f'N:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{len(subset):>8,}'
                 f'</span>'
                 '<extra></extra>'
             ),
