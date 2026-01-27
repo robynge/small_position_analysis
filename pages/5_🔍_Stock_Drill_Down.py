@@ -63,6 +63,18 @@ ticker_crossings = crossing_df[crossing_df['Ticker'] == selected_ticker] if not 
 # ============================================================================
 fig = make_subplots(specs=[[{"secondary_y": True}]])
 
+# Insert NaN rows at gaps > 7 days to break the line
+import numpy as np
+ticker_data = ticker_data.copy()
+ticker_data['Gap'] = ticker_data['Date'].diff().dt.days
+gap_rows = ticker_data[ticker_data['Gap'] > 7].index
+for idx in reversed(gap_rows.tolist()):
+    nan_row = ticker_data.loc[[idx]].copy()
+    nan_row['Date'] = ticker_data.loc[idx, 'Date'] - pd.Timedelta(days=1)
+    nan_row[['Weight', 'Stock_Price']] = np.nan
+    ticker_data = pd.concat([ticker_data.loc[:idx-1], nan_row, ticker_data.loc[idx:]])
+ticker_data = ticker_data.sort_values('Date').reset_index(drop=True)
+
 # Weight line
 fig.add_trace(
     go.Scatter(
@@ -70,6 +82,7 @@ fig.add_trace(
         y=ticker_data['Weight'],
         name='Weight (%)',
         line=dict(color='#3498db', width=2),
+        connectgaps=False,
         hovertemplate='%{x}<br>Weight: %{y:.2f}%<extra></extra>',
     ),
     secondary_y=False,
@@ -82,6 +95,7 @@ fig.add_trace(
         y=ticker_data['Stock_Price'],
         name='Price ($)',
         line=dict(color='#95a5a6', width=1.5),
+        connectgaps=False,
         hovertemplate='%{x}<br>Price: $%{y:.2f}<extra></extra>',
     ),
     secondary_y=True,
