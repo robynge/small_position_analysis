@@ -258,9 +258,37 @@ if not crossing_df.empty:
         'Larger to Smaller': '#922b21',
     }
 
-    # Exclude extreme outliers
-    scatter_df = crossing_df[~crossing_df['Ticker'].str.contains('MCRB|NVTAQ|CRCL', case=False, na=False)].copy()
-    scatter_df['Date_Str'] = pd.to_datetime(scatter_df['Crossing_Date']).dt.strftime('%m/%d/%Y')
+    # Compute days to next crossing per ticker
+    scatter_src = crossing_df.copy()
+    scatter_src = scatter_src.sort_values(['Ticker', 'Crossing_Date'])
+    scatter_src['Next_Crossing_Date'] = scatter_src.groupby('Ticker')['Crossing_Date'].shift(-1)
+    scatter_src['Days_To_Next'] = (
+        pd.to_datetime(scatter_src['Next_Crossing_Date']) - pd.to_datetime(scatter_src['Crossing_Date'])
+    ).dt.days
+    scatter_src['Next_Crossing_Str'] = scatter_src['Days_To_Next'].apply(
+        lambda x: f"{int(x)} days later" if pd.notna(x) else "N/A"
+    )
+    scatter_src['Date_Str'] = pd.to_datetime(scatter_src['Crossing_Date']).dt.strftime('%m/%d/%Y')
+
+    # Auto-detect outlier tickers: any ticker with |Avg_Return| > 20% before or after
+    outlier_threshold = 20
+    outlier_tickers = scatter_src[
+        (scatter_src['Avg_Return_Before_Crossing'].abs() > outlier_threshold) |
+        (scatter_src['Avg_Return_After_Crossing'].abs() > outlier_threshold)
+    ]['Ticker'].unique().tolist()
+
+    outlier_mode = st.radio(
+        "Outliers",
+        options=["Exclude Outliers", "Include Outliers"],
+        horizontal=True,
+        key="scatter_outlier_mode",
+        label_visibility="collapsed",
+    )
+
+    if outlier_mode == "Exclude Outliers" and outlier_tickers:
+        scatter_df = scatter_src[~scatter_src['Ticker'].isin(outlier_tickers)].copy()
+    else:
+        scatter_df = scatter_src.copy()
 
     fig_scatter = px.scatter(
         scatter_df,
@@ -268,14 +296,15 @@ if not crossing_df.empty:
         y='Avg_Return_After_Crossing',
         color='Direction',
         color_discrete_map=color_map_dir,
-        custom_data=['Ticker', 'Date_Str', 'Days_Before_Crossing', 'Days_After_Crossing', 'Direction'],
+        custom_data=['Ticker', 'Date_Str', 'Days_Before_Crossing', 'Days_After_Crossing', 'Direction', 'Next_Crossing_Str'],
     )
     fig_scatter.update_traces(
         hovertemplate=(
             '<b>%{customdata[0]}</b> — %{customdata[4]}<br>'
-            'Date: %{customdata[1]}<br>'
+            'Crossing Date: %{customdata[1]}<br>'
             'Before: %{x:.2f}% (%{customdata[2]} days)<br>'
-            'After: %{y:.2f}% (%{customdata[3]} days)'
+            'After: %{y:.2f}% (%{customdata[3]} days)<br>'
+            'Next Crossing: %{customdata[5]}'
             '<extra></extra>'
         )
     )
@@ -298,7 +327,9 @@ if not crossing_df.empty:
 
     st.plotly_chart(fig_scatter, use_container_width=True)
     st.caption("Points above the diagonal = return improved after crossing. Below = worsened.")
-    st.caption("\\* MCRB, NVTAQ, and CRCL excluded due to extreme outlier values.")
+    if outlier_tickers and outlier_mode == "Exclude Outliers":
+        excluded_names = ", ".join(sorted(set(t.replace(" US Equity", "") for t in outlier_tickers)))
+        st.caption(f"\\* Excluded (avg daily return > {outlier_threshold}%): {excluded_names}")
 else:
     st.info("No crossing events detected for this ETF and weight range.")
 
