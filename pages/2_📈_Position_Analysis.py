@@ -84,26 +84,6 @@ st.plotly_chart(fig_counts, use_container_width=True)
 # ============================================================================
 
 if not market_value.empty:
-    # Summary metrics
-    col1, col2, col3, col4 = st.columns(4)
-
-    latest_mv = market_value.iloc[-1]
-
-    with col1:
-        st.metric("Current Market Value", format_currency(latest_mv['Range_MV']))
-
-    with col2:
-        st.metric("% of Total AUM", f"{latest_mv['Pct_of_AUM']:.2f}%")
-
-    with col3:
-        st.metric("Total AUM", format_currency(latest_mv['Total_AUM']))
-
-    with col4:
-        # Calculate change from first to last
-        first_mv = market_value.iloc[0]
-        mv_change = latest_mv['Range_MV'] - first_mv['Range_MV']
-        st.metric("MV Change", format_currency(mv_change))
-
     # Market Value trend chart
     date_range_mv = st.slider("Date Range", min_value=market_value['Date'].min().to_pydatetime(),
                               max_value=market_value['Date'].max().to_pydatetime(),
