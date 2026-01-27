@@ -117,6 +117,7 @@ if not returns_df.empty:
         options=["Without Weighting", "With Weighting"],
         horizontal=True,
         key="cum_return_weighting",
+        label_visibility="collapsed",
     )
 
     if weighting_mode == "Without Weighting":
@@ -309,23 +310,14 @@ st.divider()
 st.header("Crossing Events Data")
 
 if not crossing_df.empty:
-    all_directions = sorted(crossing_df['Direction'].unique().tolist())
-    direction_filter = st.multiselect(
-        "Filter by Direction",
-        options=all_directions,
-        default=all_directions,
-        key='crossing_direction_filter'
-    )
-
-    filtered_crossings = crossing_df[crossing_df['Direction'].isin(direction_filter)].copy()
-    filtered_crossings = filtered_crossings.sort_values('Crossing_Date', ascending=False)
-
-    display_crossings = filtered_crossings.copy()
+    display_crossings = crossing_df.copy()
+    display_crossings['Crossing_Date'] = pd.to_datetime(display_crossings['Crossing_Date']).dt.strftime('%m/%d/%Y')
     display_crossings['Avg_Return_Before_Crossing'] = display_crossings['Avg_Return_Before_Crossing'].round(2)
     display_crossings['Avg_Return_After_Crossing'] = display_crossings['Avg_Return_After_Crossing'].round(2)
+    display_crossings = display_crossings.sort_values('Crossing_Date', ascending=False)
     st.dataframe(display_crossings, use_container_width=True, height=400)
 
-    st.caption(f"Total crossing events: {len(filtered_crossings)}")
+    st.caption(f"Total crossing events: {len(display_crossings)}")
 else:
     st.info("No crossing events detected for this ETF and weight range.")
 
@@ -337,17 +329,10 @@ st.divider()
 st.header("Detailed Returns Data")
 
 if not returns_df.empty:
-    period_filter = st.multiselect(
-        "Filter by Period",
-        options=sorted(returns_df['Period'].unique()),
-        default=sorted(returns_df['Period'].unique()),
-        key='returns_period_filter'
-    )
-
-    filtered_returns = returns_df[returns_df['Period'].isin(period_filter)].copy()
-    filtered_returns['Daily_Return_%'] = filtered_returns['Daily_Return'] * 100
-
-    display_cols = filtered_returns[['Date', 'Ticker', 'Weight', 'Daily_Return_%', 'Daily_PnL', 'Period']].copy()
+    display_cols = returns_df.copy()
+    display_cols['Date'] = pd.to_datetime(display_cols['Date']).dt.strftime('%m/%d/%Y')
+    display_cols['Daily_Return_%'] = display_cols['Daily_Return'] * 100
+    display_cols = display_cols[['Date', 'Ticker', 'Weight', 'Daily_Return_%', 'Daily_PnL', 'Period']]
     display_cols['Weight'] = display_cols['Weight'].round(2)
     display_cols['Daily_Return_%'] = display_cols['Daily_Return_%'].round(2)
     display_cols['Daily_PnL'] = display_cols['Daily_PnL'].round(2)
