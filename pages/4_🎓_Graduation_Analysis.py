@@ -28,18 +28,18 @@ st.markdown(f"**ETF:** {selected_etf} | **Weight Range:** {selected_range['label
 # Crossing Type Definitions
 # ============================================================================
 st.markdown(f"""
-**Crossing Types (6):** \
-Small Starter (<{lo}% → {lo}%-{hi}%) · \
-Big Starter ({lo}%-{hi}% → ≥{hi}%) · \
-Super Starter (<{lo}% → ≥{hi}%) · \
-Small Residual (≥{hi}% → {lo}%-{hi}%) · \
-Big Residual ({lo}%-{hi}% → <{lo}%) · \
-Super Residual (≥{hi}% → <{lo}%)
+**Crossing Types (6):**
+- **Small Starter**: <{lo}% → {lo}%-{hi}%
+- **Big Starter**: {lo}%-{hi}% → ≥{hi}%
+- **Super Starter**: <{lo}% → ≥{hi}%
+- **Small Residual**: ≥{hi}% → {lo}%-{hi}%
+- **Big Residual**: {lo}%-{hi}% → <{lo}%
+- **Super Residual**: ≥{hi}% → <{lo}%
 
-**Native Types (3):** \
-Native Smaller (always <{lo}%) · \
-Native Small (always {lo}%-{hi}%) · \
-Native Large (always ≥{hi}%)
+**Native Types (3):**
+- **Native Smaller**: always <{lo}%
+- **Native Small**: always {lo}%-{hi}%
+- **Native Large**: always ≥{hi}%
 """)
 
 st.divider()
