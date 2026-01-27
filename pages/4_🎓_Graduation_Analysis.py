@@ -258,8 +258,8 @@ if not crossing_df.empty:
         'Larger to Smaller': '#922b21',
     }
 
-    # Exclude MCRB (extreme outlier)
-    scatter_df = crossing_df[~crossing_df['Ticker'].str.contains('MCRB', case=False, na=False)].copy()
+    # Exclude extreme outliers
+    scatter_df = crossing_df[~crossing_df['Ticker'].str.contains('MCRB|NVTAQ', case=False, na=False)].copy()
     scatter_df['Date_Str'] = pd.to_datetime(scatter_df['Crossing_Date']).dt.strftime('%m/%d/%Y')
 
     fig_scatter = px.scatter(
@@ -298,7 +298,7 @@ if not crossing_df.empty:
 
     st.plotly_chart(fig_scatter, use_container_width=True)
     st.caption("Points above the diagonal = return improved after crossing. Below = worsened.")
-    st.caption("\\* MCRB excluded due to extreme outlier values.")
+    st.caption("\\* MCRB and NVTAQ excluded due to extreme outlier values.")
 else:
     st.info("No crossing events detected for this ETF and weight range.")
 
