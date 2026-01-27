@@ -162,7 +162,7 @@ if not returns_df.empty:
         xaxis_title='',
         hovermode='x unified',
         xaxis=dict(
-            rangeslider=dict(visible=True, thickness=0.05),
+            rangeslider=dict(visible=True, thickness=0.1),
             title=dict(text="Date Range", font=dict(size=11, color='gray'), standoff=0),
         ),
     )

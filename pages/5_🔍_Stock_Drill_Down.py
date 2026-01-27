@@ -188,7 +188,7 @@ fig.update_layout(
     hovermode='x unified',
     legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
     xaxis=dict(
-        rangeslider=dict(visible=True, thickness=0.05),
+        rangeslider=dict(visible=True, thickness=0.1),
         title=dict(text="Date Range", font=dict(size=11, color='gray'), standoff=0),
     ),
 )
