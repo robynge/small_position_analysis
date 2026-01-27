@@ -397,11 +397,21 @@ def calculate_alternative_returns(etf_name: str, weight_range: dict) -> pd.DataF
 # ============================================================================
 
 @st.cache_data
-def calculate_graduation(etf_name: str) -> tuple:
+def calculate_graduation(etf_name: str, weight_range: dict = None) -> tuple:
     """
-    Full graduation analysis with daily returns AND P&L
-    Matches original CLI version
+    Full graduation analysis with daily returns AND P&L.
+    Graduation threshold = weight_range['max'] + 1% to avoid counting
+    stocks that fluctuate around the boundary.
     """
+    if weight_range is None:
+        weight_range = WEIGHT_RANGES[0]  # default <1%
+
+    small_max = weight_range['max']
+    small_min = weight_range['min']
+    grad_threshold = small_max + 1  # graduation requires exceeding upper bound + 1%
+    label_before = f'Before_Graduation_<{small_max}%'
+    label_after = f'After_Graduation_>={grad_threshold}%'
+
     df = load_etf_data(etf_name)
     if df.empty:
         return pd.DataFrame(), pd.DataFrame(), {}
@@ -445,11 +455,11 @@ def calculate_graduation(etf_name: str) -> tuple:
         for idx in range(len(group)):
             weight = group.iloc[idx]['Weight']
 
-            if weight < 1 and not started_small:
+            if not started_small and small_min <= weight < small_max:
                 started_small = True
                 small_period_start_idx = idx
 
-            if started_small and weight >= 1:
+            if started_small and weight >= grad_threshold:
                 graduation_date = group.iloc[idx]['Date']
                 graduated_stocks[ticker] = {
                     'graduation_date': graduation_date,
@@ -476,7 +486,7 @@ def calculate_graduation(etf_name: str) -> tuple:
             if idx < small_start_idx:
                 continue
 
-            period = 'Before_Graduation_<1%' if row['Date'] < graduation_date else 'After_Graduation_>=1%'
+            period = label_before if row['Date'] < graduation_date else label_after
 
             all_returns.append({
                 'Ticker': ticker,
@@ -493,8 +503,8 @@ def calculate_graduation(etf_name: str) -> tuple:
     # Create summary with detailed statistics
     summary_data = []
     if len(returns_df) > 0:
-        before_df = returns_df[returns_df['Period'] == 'Before_Graduation_<1%']
-        after_df = returns_df[returns_df['Period'] == 'After_Graduation_>=1%']
+        before_df = returns_df[returns_df['Period'] == label_before]
+        after_df = returns_df[returns_df['Period'] == label_after]
 
         summary_data.append({
             'ETF': etf_name,

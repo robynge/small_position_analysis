@@ -1,6 +1,6 @@
 """
 Graduation Analysis Page - Full Version
-Track stocks that graduated from <1% to >=1% with daily returns and P&L
+Track stocks that graduated from small positions with daily returns and P&L
 """
 import streamlit as st
 import pandas as pd
@@ -18,17 +18,22 @@ st.set_page_config(page_title="Graduation Analysis", page_icon="🎓", layout="w
 
 selected_etf, selected_range = render_sidebar()
 
+small_max = selected_range['max']
+grad_threshold = small_max + 1
+label_before = f'Before_Graduation_<{small_max}%'
+label_after = f'After_Graduation_>={grad_threshold}%'
+
 st.title("🎓 Graduation Analysis")
-st.markdown(f"**ETF:** {selected_etf}")
-st.markdown("Track stocks that graduated from <1% to >=1% with daily returns and P&L analysis.")
+st.markdown(f"**ETF:** {selected_etf} | **Weight Range:** {selected_range['label']}")
+st.markdown(f"Track stocks that graduated from {selected_range['label']} to >={grad_threshold}% with daily returns and P&L analysis.")
 
 st.divider()
 
 with st.spinner("Analyzing graduations..."):
-    summary_df, returns_df, graduated_stocks = calculate_graduation(selected_etf)
+    summary_df, returns_df, graduated_stocks = calculate_graduation(selected_etf, selected_range)
 
 if summary_df.empty or len(graduated_stocks) == 0:
-    st.warning("No graduated stocks found for this ETF.")
+    st.warning("No graduated stocks found for this ETF and weight range.")
     st.stop()
 
 # ============================================================================
@@ -59,14 +64,14 @@ st.header("Return Statistics: Before vs After Graduation")
 col1, col2 = st.columns(2)
 
 with col1:
-    st.subheader("Before Graduation (<1%)")
+    st.subheader(f"Before Graduation ({selected_range['label']})")
     st.metric("Mean Daily Return", f"{summary_row['Mean_Return_Before_%']:.4f}%")
     st.metric("Median Daily Return", f"{summary_row['Median_Return_Before_%']:.4f}%")
     st.metric("Std Dev", f"{summary_row['Std_Return_Before_%']:.4f}%")
     st.metric("Total P&L", format_currency(summary_row['Total_PnL_Before']))
 
 with col2:
-    st.subheader("After Graduation (>=1%)")
+    st.subheader(f"After Graduation (>={grad_threshold}%)")
     st.metric("Mean Daily Return", f"{summary_row['Mean_Return_After_%']:.4f}%")
     st.metric("Median Daily Return", f"{summary_row['Median_Return_After_%']:.4f}%")
     st.metric("Std Dev", f"{summary_row['Std_Return_After_%']:.4f}%")
@@ -113,18 +118,18 @@ st.divider()
 st.header("Daily Returns Distribution")
 
 if not returns_df.empty:
-    before_returns = returns_df[returns_df['Period'] == 'Before_Graduation_<1%']['Daily_Return'] * 100
-    after_returns = returns_df[returns_df['Period'] == 'After_Graduation_>=1%']['Daily_Return'] * 100
+    before_returns = returns_df[returns_df['Period'] == label_before]['Daily_Return'] * 100
+    after_returns = returns_df[returns_df['Period'] == label_after]['Daily_Return'] * 100
 
     col1, col2 = st.columns(2)
 
     with col1:
         fig_hist = go.Figure()
         if len(before_returns) > 0:
-            fig_hist.add_trace(go.Histogram(x=before_returns, name='Before (<1%)', opacity=0.7, marker_color='#3498db', nbinsx=50,
+            fig_hist.add_trace(go.Histogram(x=before_returns, name=f'Before ({selected_range["label"]})', opacity=0.7, marker_color='#3498db', nbinsx=50,
                                              hovertemplate='Return: %{x:.2f}%<br>Count: %{y}<extra></extra>'))
         if len(after_returns) > 0:
-            fig_hist.add_trace(go.Histogram(x=after_returns, name='After (>=1%)', opacity=0.7, marker_color='#2ecc71', nbinsx=50,
+            fig_hist.add_trace(go.Histogram(x=after_returns, name=f'After (>={grad_threshold}%)', opacity=0.7, marker_color='#2ecc71', nbinsx=50,
                                              hovertemplate='Return: %{x:.2f}%<br>Count: %{y}<extra></extra>'))
         fig_hist.update_layout(title='Daily Return Distribution', barmode='overlay', xaxis_title='Return (%)')
         st.plotly_chart(fig_hist, use_container_width=True)
@@ -132,10 +137,10 @@ if not returns_df.empty:
     with col2:
         fig_box = go.Figure()
         if len(before_returns) > 0:
-            fig_box.add_trace(go.Box(y=before_returns, name='Before (<1%)', marker_color='#3498db',
+            fig_box.add_trace(go.Box(y=before_returns, name=f'Before ({selected_range["label"]})', marker_color='#3498db',
                                       hovertemplate='%{y:.2f}%<extra></extra>'))
         if len(after_returns) > 0:
-            fig_box.add_trace(go.Box(y=after_returns, name='After (>=1%)', marker_color='#2ecc71',
+            fig_box.add_trace(go.Box(y=after_returns, name=f'After (>={grad_threshold}%)', marker_color='#2ecc71',
                                       hovertemplate='%{y:.2f}%<extra></extra>'))
         fig_box.update_layout(title='Return Box Plot', yaxis_title='Return (%)')
         st.plotly_chart(fig_box, use_container_width=True)
@@ -150,8 +155,8 @@ st.header("Graduated Stocks")
 grad_list = []
 for ticker, info in graduated_stocks.items():
     ticker_data = returns_df[returns_df['Ticker'] == ticker]
-    before_data = ticker_data[ticker_data['Period'] == 'Before_Graduation_<1%']
-    after_data = ticker_data[ticker_data['Period'] == 'After_Graduation_>=1%']
+    before_data = ticker_data[ticker_data['Period'] == label_before]
+    after_data = ticker_data[ticker_data['Period'] == label_after]
 
     grad_list.append({
         'Ticker': ticker,
@@ -190,4 +195,3 @@ if not returns_df.empty:
     display_cols['Daily_Return_%'] = display_cols['Daily_Return_%'].round(2)
     display_cols['Daily_PnL'] = display_cols['Daily_PnL'].round(2)
     st.dataframe(display_cols, use_container_width=True, height=400)
-
