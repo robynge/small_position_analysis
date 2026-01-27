@@ -165,9 +165,8 @@ fig.update_layout(
     title=f"{selected_ticker}",
     hovermode='x unified',
     legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
+    xaxis=dict(rangeslider=dict(visible=True), type='date'),
 )
-fig.update_yaxes(title_text='Weight (%)', secondary_y=False)
-fig.update_yaxes(title_text='Price ($)', secondary_y=True)
 
 st.plotly_chart(fig, use_container_width=True)
 
