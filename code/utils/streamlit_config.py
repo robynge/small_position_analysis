@@ -406,17 +406,17 @@ def calculate_crossing_analysis(etf_name: str, weight_range: dict) -> tuple:
       - above: weight >= max
 
     Crossing types (6):
-      - Small Starter:  below -> in_range
-      - Big Starter:    in_range -> above
-      - Super Starter:  below -> above
-      - Small Residual: above -> in_range
-      - Big Residual:   in_range -> below
-      - Super Residual: above -> below
+      - Smaller to Current:  below -> in_range
+      - Current to Larger:    in_range -> above
+      - Smaller to Larger:  below -> above
+      - Larger to Current: above -> in_range
+      - Current to Smaller:   in_range -> below
+      - Larger to Smaller: above -> below
 
     Native types (3):
       - Native Smaller: always below min
-      - Native Small:   always in [min, max)
-      - Native Large:   always >= max
+      - Native Current:   always in [min, max)
+      - Native Larger:   always >= max
 
     Returns: (crossing_df, returns_df, category_summary)
     """
@@ -467,12 +467,12 @@ def calculate_crossing_analysis(etf_name: str, weight_range: dict) -> tuple:
 
     # Map zone transitions to crossing direction names
     CROSSING_NAMES = {
-        ('below', 'in_range'): 'Small Starter',
-        ('in_range', 'above'): 'Big Starter',
-        ('below', 'above'): 'Super Starter',
-        ('above', 'in_range'): 'Small Residual',
-        ('in_range', 'below'): 'Big Residual',
-        ('above', 'below'): 'Super Residual',
+        ('below', 'in_range'): 'Smaller to Current',
+        ('in_range', 'above'): 'Current to Larger',
+        ('below', 'above'): 'Smaller to Larger',
+        ('above', 'in_range'): 'Larger to Current',
+        ('in_range', 'below'): 'Current to Smaller',
+        ('above', 'below'): 'Larger to Smaller',
     }
 
     # Detect crossings per ticker and assign per-day Period labels
@@ -504,9 +504,9 @@ def calculate_crossing_analysis(etf_name: str, weight_range: dict) -> tuple:
             if unique_zones == {'below'}:
                 period = 'Native Smaller'
             elif unique_zones == {'above'}:
-                period = 'Native Large'
+                period = 'Native Larger'
             else:
-                period = 'Native Small'
+                period = 'Native Current'
             for oi in orig_idx:
                 period_labels[oi] = period
             continue
@@ -518,9 +518,9 @@ def calculate_crossing_analysis(etf_name: str, weight_range: dict) -> tuple:
         if first_zone == 'below':
             first_period = 'Native Smaller'
         elif first_zone == 'above':
-            first_period = 'Native Large'
+            first_period = 'Native Larger'
         else:
-            first_period = 'Native Small'
+            first_period = 'Native Current'
 
         segments = [(0, crossing_indices[0]['idx'] - 1, first_period)]
         for ci, crossing in enumerate(crossing_indices):
@@ -583,9 +583,9 @@ def calculate_crossing_analysis(etf_name: str, weight_range: dict) -> tuple:
         for ticker, grp in crossing_df.groupby('Ticker'):
             ticker_directions[ticker] = set(grp['Direction'])
 
-    # "Had starter" = any upward crossing (Small Starter, Big Starter, Super Starter)
-    starter_types = {'Small Starter', 'Big Starter', 'Super Starter'}
-    residual_types = {'Small Residual', 'Big Residual', 'Super Residual'}
+    # "Had starter" = any upward crossing (Smaller to Current, Current to Larger, Smaller to Larger)
+    starter_types = {'Smaller to Current', 'Current to Larger', 'Smaller to Larger'}
+    residual_types = {'Larger to Current', 'Current to Smaller', 'Larger to Smaller'}
     had_starter = {t for t, dirs in ticker_directions.items() if dirs & starter_types}
     had_residual = {t for t, dirs in ticker_directions.items() if dirs & residual_types}
     starter_then_fell = had_starter & had_residual
@@ -608,9 +608,9 @@ def calculate_crossing_analysis(etf_name: str, weight_range: dict) -> tuple:
         'count_residual_then_grew': len(residual_then_grew),
         'crossing_type_counts': crossing_type_counts,
     }
-    all_periods = ['Small Starter', 'Big Starter', 'Super Starter',
-                   'Small Residual', 'Big Residual', 'Super Residual',
-                   'Native Smaller', 'Native Small', 'Native Large']
+    all_periods = ['Smaller to Current', 'Current to Larger', 'Smaller to Larger',
+                   'Larger to Current', 'Current to Smaller', 'Larger to Smaller',
+                   'Native Smaller', 'Native Current', 'Native Larger']
     for period in all_periods:
         key = period.lower().replace(' ', '_')
         subset = returns_df.loc[returns_df['Period'] == period, 'Daily_Return']

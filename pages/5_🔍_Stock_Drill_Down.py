@@ -147,12 +147,12 @@ fig.add_trace(
 # Add crossing event markers — one trace per direction
 if not ticker_crossings.empty:
     crossing_styles = {
-        'Small Starter':  {'color': '#2ecc71', 'symbol': 'triangle-up'},
-        'Big Starter':    {'color': '#27ae60', 'symbol': 'triangle-up'},
-        'Super Starter':  {'color': '#1e8449', 'symbol': 'diamond'},
-        'Small Residual': {'color': '#e74c3c', 'symbol': 'triangle-down'},
-        'Big Residual':   {'color': '#c0392b', 'symbol': 'triangle-down'},
-        'Super Residual': {'color': '#922b21', 'symbol': 'diamond'},
+        'Smaller to Current':  {'color': '#2ecc71', 'symbol': 'triangle-up'},
+        'Current to Larger':    {'color': '#27ae60', 'symbol': 'triangle-up'},
+        'Smaller to Larger':  {'color': '#1e8449', 'symbol': 'diamond'},
+        'Larger to Current': {'color': '#e74c3c', 'symbol': 'triangle-down'},
+        'Current to Smaller':   {'color': '#c0392b', 'symbol': 'triangle-down'},
+        'Larger to Smaller': {'color': '#922b21', 'symbol': 'diamond'},
     }
 
     for direction, style in crossing_styles.items():

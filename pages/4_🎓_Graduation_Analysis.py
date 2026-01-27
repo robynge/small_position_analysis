@@ -32,20 +32,20 @@ st.markdown(f"""
 
 | Direction | From | To | Description |
 |-----------|------|----|-------------|
-| **Small Starter** | Below (<{lo}%) | In Range ({lo}%-{hi}%) | Stock entered the range from below |
-| **Big Starter** | In Range ({lo}%-{hi}%) | Above (≥{hi}%) | Stock grew out of the range upward |
-| **Super Starter** | Below (<{lo}%) | Above (≥{hi}%) | Stock jumped from below range to above |
-| **Small Residual** | Above (≥{hi}%) | In Range ({lo}%-{hi}%) | Stock fell into the range from above |
-| **Big Residual** | In Range ({lo}%-{hi}%) | Below (<{lo}%) | Stock fell out of the range downward |
-| **Super Residual** | Above (≥{hi}%) | Below (<{lo}%) | Stock dropped from above range to below |
+| **Smaller to Current** | Below (<{lo}%) | In Range ({lo}%-{hi}%) | Stock entered the range from below |
+| **Current to Larger** | In Range ({lo}%-{hi}%) | Above (≥{hi}%) | Stock grew out of the range upward |
+| **Smaller to Larger** | Below (<{lo}%) | Above (≥{hi}%) | Stock jumped from below range to above |
+| **Larger to Current** | Above (≥{hi}%) | In Range ({lo}%-{hi}%) | Stock fell into the range from above |
+| **Current to Smaller** | In Range ({lo}%-{hi}%) | Below (<{lo}%) | Stock fell out of the range downward |
+| **Larger to Smaller** | Above (≥{hi}%) | Below (<{lo}%) | Stock dropped from above range to below |
 
 **Native Types (3):**
 
 | Type | Description |
 |------|-------------|
 | **Native Smaller** | Stock has always been below {lo}% — never crossed either boundary |
-| **Native Small** | Stock has always been within {lo}%-{hi}% — never crossed either boundary |
-| **Native Large** | Stock has always been ≥{hi}% — never crossed either boundary |
+| **Native Current** | Stock has always been within {lo}%-{hi}% — never crossed either boundary |
+| **Native Larger** | Stock has always been ≥{hi}% — never crossed either boundary |
 """)
 
 st.divider()
@@ -71,7 +71,7 @@ current = summary['current_holdings']
 crossed = total - ns - nsm - nl
 
 crossing_parts = []
-for t in ['Small Starter', 'Big Starter', 'Super Starter', 'Small Residual', 'Big Residual', 'Super Residual']:
+for t in ['Smaller to Current', 'Current to Larger', 'Smaller to Larger', 'Larger to Current', 'Current to Smaller', 'Larger to Smaller']:
     c = cts.get(t, 0)
     if c > 0:
         crossing_parts.append(f"{c} {t}")
@@ -79,7 +79,7 @@ crossing_str = ", ".join(crossing_parts) if crossing_parts else "none"
 
 st.markdown(
     f"{selected_etf} has **{current}** current holdings out of **{total}** stocks ever held. "
-    f"Of these, **{ns}** are Native Smaller, **{nsm}** Native Small, and **{nl}** Native Large (never crossed either boundary). "
+    f"Of these, **{ns}** are Native Smaller, **{nsm}** Native Current, and **{nl}** Native Larger (never crossed either boundary). "
     f"**{crossed}** stocks crossed at least one boundary, producing **{sum(cts.values())}** total crossing events ({crossing_str}). "
     f"**{hs}** stocks had at least one upward crossing, **{hr}** had at least one downward crossing. "
     f"Of those, **{stf}/{hs}** starters later fell back, and **{rtg}/{hr}** residuals later grew back."
@@ -90,19 +90,19 @@ st.divider()
 # ============================================================================
 # Cumulative Return by Category
 # ============================================================================
-category_order = ['Small Starter', 'Big Starter', 'Super Starter',
-                  'Small Residual', 'Big Residual', 'Super Residual',
-                  'Native Smaller', 'Native Small', 'Native Large']
+category_order = ['Smaller to Current', 'Current to Larger', 'Smaller to Larger',
+                  'Larger to Current', 'Current to Smaller', 'Larger to Smaller',
+                  'Native Smaller', 'Native Current', 'Native Larger']
 color_map = {
-    'Small Starter': '#3498db',
-    'Big Starter': '#2980b9',
-    'Super Starter': '#1a5276',
-    'Small Residual': '#e74c3c',
-    'Big Residual': '#c0392b',
-    'Super Residual': '#922b21',
+    'Smaller to Current': '#3498db',
+    'Current to Larger': '#2980b9',
+    'Smaller to Larger': '#1a5276',
+    'Larger to Current': '#e74c3c',
+    'Current to Smaller': '#c0392b',
+    'Larger to Smaller': '#922b21',
     'Native Smaller': '#bdc3c7',
-    'Native Small': '#95a5a6',
-    'Native Large': '#2ecc71',
+    'Native Current': '#95a5a6',
+    'Native Larger': '#2ecc71',
 }
 
 st.header("Cumulative Return by Category")
@@ -234,12 +234,12 @@ st.header("Crossing Events: Before vs After Return")
 
 if not crossing_df.empty:
     color_map_dir = {
-        'Small Starter': '#3498db',
-        'Big Starter': '#2980b9',
-        'Super Starter': '#1a5276',
-        'Small Residual': '#e74c3c',
-        'Big Residual': '#c0392b',
-        'Super Residual': '#922b21',
+        'Smaller to Current': '#3498db',
+        'Current to Larger': '#2980b9',
+        'Smaller to Larger': '#1a5276',
+        'Larger to Current': '#e74c3c',
+        'Current to Smaller': '#c0392b',
+        'Larger to Smaller': '#922b21',
     }
 
     fig_scatter = px.scatter(
