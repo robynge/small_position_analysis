@@ -29,17 +29,23 @@ st.markdown(f"**ETF:** {selected_etf} | **Weight Range:** {selected_range['label
 # ============================================================================
 st.markdown(f"""
 **Crossing Types (6):**
-- **Small Starter**: <{lo}% → {lo}%-{hi}%
-- **Big Starter**: {lo}%-{hi}% → ≥{hi}%
-- **Super Starter**: <{lo}% → ≥{hi}%
-- **Small Residual**: ≥{hi}% → {lo}%-{hi}%
-- **Big Residual**: {lo}%-{hi}% → <{lo}%
-- **Super Residual**: ≥{hi}% → <{lo}%
+
+| Direction | From | To | Description |
+|-----------|------|----|-------------|
+| **Small Starter** | Below (<{lo}%) | In Range ({lo}%-{hi}%) | Stock entered the range from below |
+| **Big Starter** | In Range ({lo}%-{hi}%) | Above (≥{hi}%) | Stock grew out of the range upward |
+| **Super Starter** | Below (<{lo}%) | Above (≥{hi}%) | Stock jumped from below range to above |
+| **Small Residual** | Above (≥{hi}%) | In Range ({lo}%-{hi}%) | Stock fell into the range from above |
+| **Big Residual** | In Range ({lo}%-{hi}%) | Below (<{lo}%) | Stock fell out of the range downward |
+| **Super Residual** | Above (≥{hi}%) | Below (<{lo}%) | Stock dropped from above range to below |
 
 **Native Types (3):**
-- **Native Smaller**: always <{lo}%
-- **Native Small**: always {lo}%-{hi}%
-- **Native Large**: always ≥{hi}%
+
+| Type | Description |
+|------|-------------|
+| **Native Smaller** | Stock has always been below {lo}% — never crossed either boundary |
+| **Native Small** | Stock has always been within {lo}%-{hi}% — never crossed either boundary |
+| **Native Large** | Stock has always been ≥{hi}% — never crossed either boundary |
 """)
 
 st.divider()
