@@ -104,7 +104,7 @@ fig.add_trace(
         name='Weight (%)',
         line=dict(color='#3498db', width=2),
         connectgaps=False,
-        hovertemplate='%{x}<br>Weight: %{y:.2f}%<extra></extra>',
+        hovertemplate='Weight: %{y:.2f}%<extra></extra>',
     ),
     secondary_y=False,
 )
@@ -117,7 +117,7 @@ fig.add_trace(
         name='Price ($)',
         line=dict(color='#95a5a6', width=1.5),
         connectgaps=False,
-        hovertemplate='%{x}<br>Price: $%{y:.2f}<extra></extra>',
+        hovertemplate='Price: $%{y:.2f}<extra></extra>',
     ),
     secondary_y=True,
 )
@@ -178,7 +178,7 @@ if not ticker_crossings.empty:
                     marker=dict(size=14, color=style['color'], symbol=style['symbol'],
                                 line=dict(width=1, color='white')),
                     name=f'{direction} ({len(dates)})',
-                    hovertemplate=f'{direction}<br>%{{x}}<br>Weight: %{{y:.2f}}%<extra></extra>',
+                    hovertemplate=f'{direction}<br>Weight: %{{y:.2f}}%<extra></extra>',
                 ),
                 secondary_y=False,
             )
