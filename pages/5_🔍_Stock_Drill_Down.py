@@ -87,42 +87,48 @@ fig.add_trace(
     secondary_y=True,
 )
 
-# Boundary line
-fig.add_hline(
-    y=boundary,
-    line_dash='dash',
-    line_color='orange',
-    annotation_text=f'Boundary {boundary}%',
-    annotation_position='top left',
+# Boundary line as a legend trace
+fig.add_trace(
+    go.Scatter(
+        x=[ticker_data['Date'].min(), ticker_data['Date'].max()],
+        y=[boundary, boundary],
+        name=f'Boundary ({boundary}%)',
+        line=dict(color='orange', dash='dash', width=1.5),
+        hoverinfo='skip',
+    ),
     secondary_y=False,
 )
 
-# Add crossing event annotations
+# Add crossing event markers — one trace per direction to keep hover clean
 if not ticker_crossings.empty:
-    for _, event in ticker_crossings.iterrows():
-        crossing_date = event['Crossing_Date']
-        # Find weight on crossing date
-        day_row = ticker_data[ticker_data['Date'] == crossing_date]
-        if day_row.empty:
+    for direction, color, symbol in [('Starter', '#2ecc71', 'triangle-up'),
+                                      ('Residual', '#e74c3c', 'triangle-down')]:
+        events = ticker_crossings[ticker_crossings['Direction'] == direction]
+        if events.empty:
             continue
-        weight_at_crossing = day_row['Weight'].iloc[0]
 
-        is_starter = event['Direction'] == 'Starter'
-        color = '#2ecc71' if is_starter else '#e74c3c'
-        symbol = 'triangle-up' if is_starter else 'triangle-down'
+        dates = []
+        weights = []
+        for _, event in events.iterrows():
+            day_row = ticker_data[ticker_data['Date'] == event['Crossing_Date']]
+            if day_row.empty:
+                continue
+            dates.append(event['Crossing_Date'])
+            weights.append(day_row['Weight'].iloc[0])
 
-        fig.add_trace(
-            go.Scatter(
-                x=[crossing_date],
-                y=[weight_at_crossing],
-                mode='markers',
-                marker=dict(size=14, color=color, symbol=symbol, line=dict(width=1, color='white')),
-                name=event['Direction'],
-                showlegend=False,
-                hovertemplate=f"{event['Direction']}<br>%{{x}}<br>Weight: %{{y:.2f}}%<extra></extra>",
-            ),
-            secondary_y=False,
-        )
+        if dates:
+            fig.add_trace(
+                go.Scatter(
+                    x=dates,
+                    y=weights,
+                    mode='markers',
+                    marker=dict(size=14, color=color, symbol=symbol,
+                                line=dict(width=1, color='white')),
+                    name=f'{direction} ({len(dates)})',
+                    hovertemplate=f'{direction}<br>%{{x}}<br>Weight: %{{y:.2f}}%<extra></extra>',
+                ),
+                secondary_y=False,
+            )
 
 fig.update_layout(
     title=f"{selected_ticker}",
@@ -133,17 +139,6 @@ fig.update_yaxes(title_text='Weight (%)', secondary_y=False)
 fig.update_yaxes(title_text='Price ($)', secondary_y=True)
 
 st.plotly_chart(fig, use_container_width=True)
-
-# Legend explanation for arrows
-if not ticker_crossings.empty:
-    starter_count = len(ticker_crossings[ticker_crossings['Direction'] == 'Starter'])
-    residual_count = len(ticker_crossings[ticker_crossings['Direction'] == 'Residual'])
-    parts = []
-    if starter_count > 0:
-        parts.append(f"Green triangles = Starter ({starter_count})")
-    if residual_count > 0:
-        parts.append(f"Red triangles = Residual ({residual_count})")
-    st.caption(" | ".join(parts))
 
 st.divider()
 
