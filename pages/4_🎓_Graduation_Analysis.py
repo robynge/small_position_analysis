@@ -270,11 +270,21 @@ if not crossing_df.empty:
     )
     scatter_src['Date_Str'] = pd.to_datetime(scatter_src['Crossing_Date']).dt.strftime('%m/%d/%Y')
 
-    # Auto-detect outlier tickers: any ticker with |Avg_Return| > 20% before or after
-    outlier_threshold = 20
+    # Auto-detect outlier tickers: short window (<=2 days) with statistically extreme return
+    all_returns = pd.concat([
+        scatter_src['Avg_Return_Before_Crossing'],
+        scatter_src['Avg_Return_After_Crossing']
+    ])
+    q1, q3 = all_returns.quantile(0.25), all_returns.quantile(0.75)
+    iqr = q3 - q1
+    outlier_bound = 10 * iqr  # 10x IQR from median
+    median = all_returns.median()
+    is_extreme_before = (scatter_src['Avg_Return_Before_Crossing'] - median).abs() > outlier_bound
+    is_extreme_after = (scatter_src['Avg_Return_After_Crossing'] - median).abs() > outlier_bound
+    short_before = scatter_src['Days_Before_Crossing'] <= 2
+    short_after = scatter_src['Days_After_Crossing'] <= 2
     outlier_tickers = scatter_src[
-        (scatter_src['Avg_Return_Before_Crossing'].abs() > outlier_threshold) |
-        (scatter_src['Avg_Return_After_Crossing'].abs() > outlier_threshold)
+        (short_before & is_extreme_before) | (short_after & is_extreme_after)
     ]['Ticker'].unique().tolist()
 
     outlier_mode = st.radio(
@@ -329,7 +339,7 @@ if not crossing_df.empty:
     st.caption("Points above the diagonal = return improved after crossing. Below = worsened.")
     if outlier_tickers and outlier_mode == "Exclude Outliers":
         excluded_names = ", ".join(sorted(set(t.replace(" US Equity", "") for t in outlier_tickers)))
-        st.caption(f"\\* Excluded (avg daily return > {outlier_threshold}%): {excluded_names}")
+        st.caption(f"\\* Excluded (crossing window ≤2 days with statistically extreme return): {excluded_names}")
 else:
     st.info("No crossing events detected for this ETF and weight range.")
 
