@@ -111,6 +111,14 @@ def calculate_pnl(etf_name: str, weight_range: dict) -> tuple:
     # Calculate previous day values
     df['Day0_Position'] = df.groupby('Bloomberg Name')['Position'].shift(1)
     df['Day0_Price'] = df.groupby('Bloomberg Name')['Stock_Price'].shift(1)
+    df['Day0_Date'] = df.groupby('Bloomberg Name')['Date'].shift(1)
+
+    # Invalidate if gap > 7 days or previous price is 0
+    gap_days = (df['Date'] - df['Day0_Date']).dt.days
+    invalid_prev = (gap_days > 7) | (df['Day0_Price'] == 0)
+    df.loc[invalid_prev, 'Day0_Position'] = float('nan')
+    df.loc[invalid_prev, 'Day0_Price'] = float('nan')
+    df.drop(columns=['Day0_Date'], inplace=True)
 
     # Current day (Day1) values
     df['Day1_Position'] = df['Position']
@@ -120,7 +128,7 @@ def calculate_pnl(etf_name: str, weight_range: dict) -> tuple:
     df['Day0_MV'] = df['Day0_Position'] * df['Day0_Price']
     df['Day1_MV'] = df['Day1_Position'] * df['Day1_Price']
 
-    # Fill NaN for first day
+    # Fill NaN for first day / invalid previous day (treated as Entry)
     df['Day0_Position'] = df['Day0_Position'].fillna(0)
     df['Day0_Price'] = df['Day0_Price'].fillna(0)
     df['Day0_MV'] = df['Day0_MV'].fillna(0)
@@ -278,6 +286,14 @@ def calculate_alternative_returns(etf_name: str, weight_range: dict) -> pd.DataF
 
     df = df.sort_values(['Bloomberg Name', 'Date']).reset_index(drop=True)
     df['Yesterday_Price'] = df.groupby('Bloomberg Name')['Stock_Price'].shift(1)
+    df['Yesterday_Date'] = df.groupby('Bloomberg Name')['Date'].shift(1)
+
+    # Invalidate if gap > 7 days or previous price is 0
+    gap_days = (df['Date'] - df['Yesterday_Date']).dt.days
+    invalid_prev = (gap_days > 7) | (df['Yesterday_Price'] == 0)
+    df.loc[invalid_prev, 'Yesterday_Price'] = float('nan')
+    df.drop(columns=['Yesterday_Date'], inplace=True)
+
     df['Stock_Return'] = (df['Stock_Price'] - df['Yesterday_Price']) / df['Yesterday_Price']
 
     results = []
@@ -364,6 +380,14 @@ def calculate_graduation(etf_name: str) -> tuple:
     df['Yesterday_Price'] = df.groupby('Bloomberg Name')['Stock_Price'].shift(1)
     df['Yesterday_Position'] = df.groupby('Bloomberg Name')['Position'].shift(1)
     df['Yesterday_Weight'] = df.groupby('Bloomberg Name')['Weight'].shift(1)
+    df['Yesterday_Date'] = df.groupby('Bloomberg Name')['Date'].shift(1)
+
+    # Invalidate if gap > 7 days or previous price is 0
+    gap_days = (df['Date'] - df['Yesterday_Date']).dt.days
+    invalid_prev = (gap_days > 7) | (df['Yesterday_Price'] == 0)
+    df.loc[invalid_prev, ['Yesterday_Price', 'Yesterday_Position', 'Yesterday_Weight']] = float('nan')
+    df.drop(columns=['Yesterday_Date'], inplace=True)
+
     df['Daily_Return'] = (df['Stock_Price'] - df['Yesterday_Price']) / df['Yesterday_Price']
     df['Daily_PnL'] = df['Yesterday_Position'] * (df['Stock_Price'] - df['Yesterday_Price'])
 
@@ -512,7 +536,11 @@ def calculate_starter_residual(etf_name: str, weight_range: dict) -> tuple:
         ticker_data = df[df['Bloomberg Name'] == ticker].copy()
         ticker_data = ticker_data.sort_values('Date')
 
-        ticker_data['Was_Large'] = ticker_data['Weight'].shift(1) >= weight_range['max']
+        ticker_data['Prev_Date'] = ticker_data['Date'].shift(1)
+        gap_days = (ticker_data['Date'] - ticker_data['Prev_Date']).dt.days
+        valid_prev = gap_days <= 7
+
+        ticker_data['Was_Large'] = (ticker_data['Weight'].shift(1) >= weight_range['max']) & valid_prev
         ticker_data['Is_Small'] = (
             (ticker_data['Weight'] >= weight_range['min']) &
             (ticker_data['Weight'] < weight_range['max'])
