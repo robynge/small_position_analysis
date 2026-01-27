@@ -170,14 +170,63 @@ with col1:
     st.plotly_chart(fig_hist, use_container_width=True)
 
 with col2:
-    fig_box = go.Figure()
-    fig_box.add_trace(go.Box(y=returns_df['Return_Actual'] * 100, name='Actual', marker_color='#3498db',
-                              hovertemplate='%{y:.2f}%<extra></extra>'))
-    fig_box.add_trace(go.Box(y=returns_df['Return_ExcludeSmall'] * 100, name='Excl. Current', marker_color='#e74c3c',
-                              hovertemplate='%{y:.2f}%<extra></extra>'))
-    fig_box.add_trace(go.Box(y=returns_df['Return_SmallOnly'] * 100, name='Current Only', marker_color='#2ecc71',
-                              hovertemplate='%{y:.2f}%<extra></extra>'))
-    fig_box.update_layout(title='Box Plot Comparison', yaxis_title='Return (%)')
+    box_categories = [
+        ('Actual', returns_df['Return_Actual'] * 100, '#3498db'),
+        ('Excl. Current', returns_df['Return_ExcludeSmall'] * 100, '#e74c3c'),
+        ('Current Only', returns_df['Return_SmallOnly'] * 100, '#2ecc71'),
+    ]
+    # Build strip data
+    strip_data = pd.DataFrame({
+        'Category': sum([[name] * len(vals) for name, vals, _ in box_categories], []),
+        'Return_%': pd.concat([vals.reset_index(drop=True) for _, vals, _ in box_categories], ignore_index=True),
+    })
+    box_color_map = {name: color for name, _, color in box_categories}
+    box_order = [name for name, _, _ in box_categories]
+
+    fig_box = px.strip(
+        strip_data, x='Category', y='Return_%', color='Category',
+        category_orders={'Category': box_order},
+        color_discrete_map=box_color_map,
+    )
+    fig_box.update_traces(
+        marker=dict(size=3, opacity=0.4), jitter=0.4,
+        hoverinfo='skip', hovertemplate=None,
+    )
+
+    for name, vals, _ in box_categories:
+        subset = vals.dropna()
+        q1, median, q3 = subset.quantile(0.25), subset.median(), subset.quantile(0.75)
+        iqr = q3 - q1
+        whisker_lo = max(subset.min(), q1 - 1.5 * iqr)
+        whisker_hi = min(subset.max(), q3 + 1.5 * iqr)
+        fig_box.add_trace(go.Box(
+            x=[name], q1=[q1], median=[median], q3=[q3],
+            lowerfence=[whisker_lo], upperfence=[whisker_hi],
+            marker_color='rgba(255,255,255,0.6)',
+            line=dict(color='white', width=1.5),
+            fillcolor='rgba(0,0,0,0)',
+            width=0.5, showlegend=False, hoverinfo='skip',
+        ))
+        fig_box.add_trace(go.Bar(
+            x=[name], y=[whisker_hi - whisker_lo], base=whisker_lo,
+            width=0.5, marker=dict(color='rgba(0,0,0,0)'),
+            showlegend=False,
+            hovertemplate=(
+                f'<b>{name}</b><br>'
+                f'<span style="font-family:monospace">'
+                f'Max:&nbsp;&nbsp;&nbsp;{whisker_hi:>8.2f}%<br>'
+                f'Q3:&nbsp;&nbsp;&nbsp;&nbsp;{q3:>8.2f}%<br>'
+                f'Median:{median:>8.2f}%<br>'
+                f'Q1:&nbsp;&nbsp;&nbsp;&nbsp;{q1:>8.2f}%<br>'
+                f'Min:&nbsp;&nbsp;&nbsp;{whisker_lo:>8.2f}%<br>'
+                f'Mean:&nbsp;&nbsp;{subset.mean():>8.2f}%<br>'
+                f'N:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{len(subset):>8,}'
+                f'</span>'
+                '<extra></extra>'
+            ),
+        ))
+
+    fig_box.update_layout(title='Box Plot Comparison', yaxis_title='Return (%)', showlegend=False)
     st.plotly_chart(fig_box, use_container_width=True)
 
 st.divider()
