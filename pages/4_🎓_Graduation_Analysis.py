@@ -274,7 +274,7 @@ if not returns_df.empty:
                 f'Q1:&nbsp;&nbsp;&nbsp;&nbsp;{q1:>8.2f}%<br>'
                 f'Min:&nbsp;&nbsp;&nbsp;{whisker_lo:>8.2f}%<br>'
                 f'Mean:&nbsp;&nbsp;{subset.mean():>8.2f}%<br>'
-                f'N:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{len(subset):>8,}'
+                f'N:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{len(subset):>6,}'
                 f'</span>'
                 '<extra></extra>'
             ),
