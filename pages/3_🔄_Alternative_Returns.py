@@ -214,9 +214,9 @@ st.dataframe(stats_df.style.format({
 st.divider()
 
 # ============================================================================
-# Raw Data
+# Raw Output
 # ============================================================================
-st.header("Raw Data")
+st.header("Raw Output")
 
 display_df = returns_df.copy()
 display_df['Actual_%'] = display_df['Return_Actual'] * 100
