@@ -72,6 +72,9 @@ def load_etf_data(etf_name: str) -> pd.DataFrame:
 
     if 'Bloomberg Name' in df.columns:
         df = df[~df['Bloomberg Name'].str.contains('Curncy', case=False, na=False)].copy()
+        # Exclude money market funds (no price movement, distort return analysis)
+        EXCLUDED_TICKERS = ['MVRXX US Equity', 'FEDXX1Y US Equity', 'DGCXX US Equity']
+        df = df[~df['Bloomberg Name'].isin(EXCLUDED_TICKERS)].copy()
 
     df['Weight'] = df['Weight'] * 100
     df['Company_Name'] = df['Bloomberg Name']
