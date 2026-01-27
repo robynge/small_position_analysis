@@ -1,6 +1,6 @@
 """
-Graduation Analysis Page - Full Version
-Track stocks that graduated from small positions with daily returns and P&L
+Crossing Analysis Page
+Unified analysis of stocks crossing the weight range boundary in either direction
 """
 import streamlit as st
 import pandas as pd
@@ -11,173 +11,104 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "code"))
 from utils.streamlit_config import (
-    render_sidebar, calculate_graduation, format_currency
+    render_sidebar, calculate_crossing_analysis
 )
 
-st.set_page_config(page_title="Graduation Analysis", page_icon="🎓", layout="wide")
+st.set_page_config(page_title="Crossing Analysis", page_icon="🎓", layout="wide")
 
 selected_etf, selected_range = render_sidebar()
 
-small_max = selected_range['max']
-grad_threshold = small_max + 1
-label_before = f'Before_Graduation_<{small_max}%'
-label_after = f'After_Graduation_>={grad_threshold}%'
+boundary = selected_range['max']
 
-st.title("🎓 Graduation Analysis")
-st.markdown(f"**ETF:** {selected_etf} | **Weight Range:** {selected_range['label']}")
-st.markdown(f"Track stocks that graduated from {selected_range['label']} to >={grad_threshold}% with daily returns and P&L analysis.")
+st.title("Crossing Analysis")
+st.markdown(f"**ETF:** {selected_etf} | **Weight Range:** {selected_range['label']} | **Boundary:** {boundary}%")
+st.markdown("""
+Classifies stocks by how they relate to the weight range boundary:
+- **Starter**: crossed from small to large (upward)
+- **Residual**: crossed from large to small (downward)
+- **Native Small**: always within range, never crossed
+- **Native Large**: always above range, never crossed
+""")
 
 st.divider()
 
-with st.spinner("Analyzing graduations..."):
-    summary_df, returns_df, graduated_stocks = calculate_graduation(selected_etf, selected_range)
+with st.spinner("Analyzing crossings..."):
+    crossing_df, returns_df, summary = calculate_crossing_analysis(selected_etf, selected_range)
 
-if summary_df.empty or len(graduated_stocks) == 0:
-    st.warning("No graduated stocks found for this ETF and weight range.")
+if not summary:
+    st.warning("No data available for the selected ETF and weight range.")
     st.stop()
 
 # ============================================================================
-# Summary Statistics
+# Summary Metric Cards
 # ============================================================================
-st.header("Summary Statistics")
-
-summary_row = summary_df.iloc[0]
+st.header("Category Counts")
 
 col1, col2, col3, col4 = st.columns(4)
 with col1:
-    st.metric("Graduated Stocks", int(summary_row['Num_Graduated_Stocks']))
+    st.metric("Starter", summary['count_starter'])
 with col2:
-    st.metric("Records Before", int(summary_row['Total_Records_Before']))
+    st.metric("Residual", summary['count_residual'])
 with col3:
-    st.metric("Records After", int(summary_row['Total_Records_After']))
+    st.metric("Native Small", summary['count_native_small'])
 with col4:
-    total_pnl = summary_row['Total_PnL_Before'] + summary_row['Total_PnL_After']
-    st.metric("Total P&L", format_currency(total_pnl))
+    st.metric("Native Large", summary['count_native_large'])
 
 st.divider()
 
 # ============================================================================
-# Return Statistics Comparison
+# Mean Daily Return Comparison
 # ============================================================================
-st.header("Return Statistics: Before vs After Graduation")
+st.header("Mean Daily Return by Category")
 
-col1, col2 = st.columns(2)
+categories = ['Starter', 'Residual', 'Native Small', 'Native Large']
+mean_returns = [
+    summary['mean_return_starter'],
+    summary['mean_return_residual'],
+    summary['mean_return_native_small'],
+    summary['mean_return_native_large'],
+]
+colors = ['#3498db', '#e74c3c', '#95a5a6', '#2ecc71']
 
-with col1:
-    st.subheader(f"Before Graduation ({selected_range['label']})")
-    st.metric("Mean Daily Return", f"{summary_row['Mean_Return_Before_%']:.4f}%")
-    st.metric("Median Daily Return", f"{summary_row['Median_Return_Before_%']:.4f}%")
-    st.metric("Std Dev", f"{summary_row['Std_Return_Before_%']:.4f}%")
-    st.metric("Total P&L", format_currency(summary_row['Total_PnL_Before']))
-
-with col2:
-    st.subheader(f"After Graduation (>={grad_threshold}%)")
-    st.metric("Mean Daily Return", f"{summary_row['Mean_Return_After_%']:.4f}%")
-    st.metric("Median Daily Return", f"{summary_row['Median_Return_After_%']:.4f}%")
-    st.metric("Std Dev", f"{summary_row['Std_Return_After_%']:.4f}%")
-    st.metric("Total P&L", format_currency(summary_row['Total_PnL_After']))
+fig_bar = go.Figure()
+fig_bar.add_trace(go.Bar(
+    x=categories,
+    y=mean_returns,
+    marker_color=colors,
+    hovertemplate='%{x}<br>Mean Daily Return: %{y:.4f}%<extra></extra>'
+))
+fig_bar.update_layout(
+    yaxis_title='Mean Daily Return (%)',
+    xaxis_title='Category',
+)
+st.plotly_chart(fig_bar, use_container_width=True)
 
 st.divider()
 
 # ============================================================================
-# P&L Comparison Chart
+# Crossing Events Table
 # ============================================================================
-st.header("P&L Comparison")
+st.header("Crossing Events")
 
-col1, col2 = st.columns(2)
+if not crossing_df.empty:
+    direction_filter = st.multiselect(
+        "Filter by Direction",
+        options=['Starter', 'Residual'],
+        default=['Starter', 'Residual'],
+        key='crossing_direction_filter'
+    )
 
-with col1:
-    pnl_data = pd.DataFrame({
-        'Period': ['Before Graduation', 'After Graduation'],
-        'Total P&L': [summary_row['Total_PnL_Before'], summary_row['Total_PnL_After']]
-    })
-    fig_pnl = px.bar(pnl_data, x='Period', y='Total P&L', title='Total P&L by Period',
-                     color='Period', color_discrete_sequence=['#3498db', '#2ecc71'])
-    fig_pnl.update_traces(hovertemplate='%{x}<br>P&L: $%{y:,.2f}<extra></extra>')
-    st.plotly_chart(fig_pnl, use_container_width=True)
+    filtered_crossings = crossing_df[crossing_df['Direction'].isin(direction_filter)].copy()
+    filtered_crossings = filtered_crossings.sort_values('Crossing_Date', ascending=False)
 
-with col2:
-    return_data = pd.DataFrame({
-        'Period': ['Before', 'After'],
-        'Mean Return (%)': [summary_row['Mean_Return_Before_%'], summary_row['Mean_Return_After_%']],
-        'Median Return (%)': [summary_row['Median_Return_Before_%'], summary_row['Median_Return_After_%']]
-    })
-    fig_return = go.Figure()
-    fig_return.add_trace(go.Bar(name='Mean', x=return_data['Period'], y=return_data['Mean Return (%)'], marker_color='#3498db',
-                                 hovertemplate='%{x}<br>Mean: %{y:.2f}%<extra></extra>'))
-    fig_return.add_trace(go.Bar(name='Median', x=return_data['Period'], y=return_data['Median Return (%)'], marker_color='#2ecc71',
-                                 hovertemplate='%{x}<br>Median: %{y:.2f}%<extra></extra>'))
-    fig_return.update_layout(title='Return Statistics by Period', barmode='group', yaxis_title='Return (%)')
-    st.plotly_chart(fig_return, use_container_width=True)
+    display_crossings = filtered_crossings.copy()
+    display_crossings['Avg_Return_Before_Crossing'] = display_crossings['Avg_Return_Before_Crossing'].round(4)
+    display_crossings['Avg_Return_After_Crossing'] = display_crossings['Avg_Return_After_Crossing'].round(4)
+    st.dataframe(display_crossings, use_container_width=True, height=400)
 
-st.divider()
-
-# ============================================================================
-# Daily Returns Distribution
-# ============================================================================
-st.header("Daily Returns Distribution")
-
-if not returns_df.empty:
-    before_returns = returns_df[returns_df['Period'] == label_before]['Daily_Return'] * 100
-    after_returns = returns_df[returns_df['Period'] == label_after]['Daily_Return'] * 100
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        fig_hist = go.Figure()
-        if len(before_returns) > 0:
-            fig_hist.add_trace(go.Histogram(x=before_returns, name=f'Before ({selected_range["label"]})', opacity=0.7, marker_color='#3498db', nbinsx=50,
-                                             hovertemplate='Return: %{x:.2f}%<br>Count: %{y}<extra></extra>'))
-        if len(after_returns) > 0:
-            fig_hist.add_trace(go.Histogram(x=after_returns, name=f'After (>={grad_threshold}%)', opacity=0.7, marker_color='#2ecc71', nbinsx=50,
-                                             hovertemplate='Return: %{x:.2f}%<br>Count: %{y}<extra></extra>'))
-        fig_hist.update_layout(title='Daily Return Distribution', barmode='overlay', xaxis_title='Return (%)')
-        st.plotly_chart(fig_hist, use_container_width=True)
-
-    with col2:
-        fig_box = go.Figure()
-        if len(before_returns) > 0:
-            fig_box.add_trace(go.Box(y=before_returns, name=f'Before ({selected_range["label"]})', marker_color='#3498db',
-                                      hovertemplate='%{y:.2f}%<extra></extra>'))
-        if len(after_returns) > 0:
-            fig_box.add_trace(go.Box(y=after_returns, name=f'After (>={grad_threshold}%)', marker_color='#2ecc71',
-                                      hovertemplate='%{y:.2f}%<extra></extra>'))
-        fig_box.update_layout(title='Return Box Plot', yaxis_title='Return (%)')
-        st.plotly_chart(fig_box, use_container_width=True)
-
-st.divider()
-
-# ============================================================================
-# Graduated Stocks List
-# ============================================================================
-st.header("Graduated Stocks")
-
-grad_list = []
-for ticker, info in graduated_stocks.items():
-    ticker_data = returns_df[returns_df['Ticker'] == ticker]
-    before_data = ticker_data[ticker_data['Period'] == label_before]
-    after_data = ticker_data[ticker_data['Period'] == label_after]
-
-    grad_list.append({
-        'Ticker': ticker,
-        'Graduation Date': info['graduation_date'],
-        'Days Before': len(before_data),
-        'Days After': len(after_data),
-        'Total P&L Before': before_data['Daily_PnL'].sum() if len(before_data) > 0 else 0,
-        'Total P&L After': after_data['Daily_PnL'].sum() if len(after_data) > 0 else 0,
-        'Avg Return Before (%)': before_data['Daily_Return'].mean() * 100 if len(before_data) > 0 else 0,
-        'Avg Return After (%)': after_data['Daily_Return'].mean() * 100 if len(after_data) > 0 else 0
-    })
-
-grad_df = pd.DataFrame(grad_list)
-grad_df = grad_df.sort_values('Graduation Date', ascending=False)
-
-grad_display = grad_df.copy()
-grad_display['Total P&L Before'] = grad_display['Total P&L Before'].round(2)
-grad_display['Total P&L After'] = grad_display['Total P&L After'].round(2)
-grad_display['Avg Return Before (%)'] = grad_display['Avg Return Before (%)'].round(2)
-grad_display['Avg Return After (%)'] = grad_display['Avg Return After (%)'].round(2)
-st.dataframe(grad_display, use_container_width=True, height=400)
+    st.caption(f"Total crossing events: {len(filtered_crossings)}")
+else:
+    st.info("No crossing events detected for this ETF and weight range.")
 
 st.divider()
 
@@ -187,11 +118,21 @@ st.divider()
 st.header("Detailed Returns Data")
 
 if not returns_df.empty:
-    display_returns = returns_df.copy()
-    display_returns['Daily_Return_%'] = display_returns['Daily_Return'] * 100
+    period_filter = st.multiselect(
+        "Filter by Period",
+        options=sorted(returns_df['Period'].unique()),
+        default=sorted(returns_df['Period'].unique()),
+        key='returns_period_filter'
+    )
 
-    display_cols = display_returns[['Date', 'Ticker', 'Weight', 'Daily_Return_%', 'Daily_PnL', 'Period']].copy()
+    filtered_returns = returns_df[returns_df['Period'].isin(period_filter)].copy()
+    filtered_returns['Daily_Return_%'] = filtered_returns['Daily_Return'] * 100
+
+    display_cols = filtered_returns[['Date', 'Ticker', 'Weight', 'Daily_Return_%', 'Daily_PnL', 'Period']].copy()
     display_cols['Weight'] = display_cols['Weight'].round(2)
     display_cols['Daily_Return_%'] = display_cols['Daily_Return_%'].round(2)
     display_cols['Daily_PnL'] = display_cols['Daily_PnL'].round(2)
+    display_cols = display_cols.sort_values('Date', ascending=False)
     st.dataframe(display_cols, use_container_width=True, height=400)
+else:
+    st.info("No returns data available.")

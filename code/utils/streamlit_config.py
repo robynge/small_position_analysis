@@ -393,28 +393,28 @@ def calculate_alternative_returns(etf_name: str, weight_range: dict) -> pd.DataF
     return result_df
 
 # ============================================================================
-# GRADUATION ANALYSIS FUNCTIONS (FULL VERSION WITH Daily P&L)
+# CROSSING ANALYSIS FUNCTIONS
 # ============================================================================
 
 @st.cache_data
-def calculate_graduation(etf_name: str, weight_range: dict = None) -> tuple:
+def calculate_crossing_analysis(etf_name: str, weight_range: dict) -> tuple:
     """
-    Full graduation analysis with daily returns AND P&L.
-    Graduation threshold = weight_range['max'] + 1% to avoid counting
-    stocks that fluctuate around the boundary.
+    Unified crossing analysis that classifies stocks into four categories:
+    - Starter: crossed from small -> large (upward crossing)
+    - Residual: crossed from large -> small (downward crossing)
+    - Native Small: always within range, never crossed
+    - Native Large: always above range, never crossed
+
+    Boundary = weight_range['max']. Crossing is bidirectional and each
+    crossing event is recorded separately.
+
+    Returns: (crossing_df, returns_df, category_summary)
     """
-    if weight_range is None:
-        weight_range = WEIGHT_RANGES[0]  # default <1%
-
-    small_max = weight_range['max']
-    small_min = weight_range['min']
-    grad_threshold = small_max + 1  # graduation requires exceeding upper bound + 1%
-    label_before = f'Before_Graduation_<{small_max}%'
-    label_after = f'After_Graduation_>={grad_threshold}%'
-
     df = load_etf_data(etf_name)
     if df.empty:
         return pd.DataFrame(), pd.DataFrame(), {}
+
+    boundary = weight_range['max']
 
     df = df.sort_values(['Bloomberg Name', 'Date']).reset_index(drop=True)
 
@@ -430,7 +430,7 @@ def calculate_graduation(etf_name: str, weight_range: dict = None) -> tuple:
     df.loc[invalid_prev, ['Yesterday_Price', 'Yesterday_Position', 'Yesterday_Weight']] = float('nan')
     df.drop(columns=['Yesterday_Date'], inplace=True)
 
-    # Adjust for stock splits: both price and position change significantly in opposite directions
+    # Adjust for stock splits
     valid_both = (df['Yesterday_Position'] > 0) & (df['Position'] > 0) & df['Yesterday_Price'].notna()
     pos_ratio = df['Yesterday_Position'] / df['Position']
     price_ratio = df['Stock_Price'] / df['Yesterday_Price']
@@ -445,248 +445,75 @@ def calculate_graduation(etf_name: str, weight_range: dict = None) -> tuple:
     df['Daily_Return'] = (df['Stock_Price'] - df['Yesterday_Price']) / df['Yesterday_Price']
     df['Daily_PnL'] = df['Yesterday_Position'] * (df['Stock_Price'] - df['Yesterday_Price'])
 
-    # Identify graduated stocks
-    graduated_stocks = {}
+    # Detect crossings per ticker
+    crossing_records = []
+    ticker_first_direction = {}  # ticker -> first crossing direction
+
     for ticker, group in df.groupby('Bloomberg Name'):
         group = group.sort_values('Date').reset_index(drop=True)
-        started_small = False
-        small_period_start_idx = None
+        valid = group['Yesterday_Weight'].notna()
+        yesterday_large = group['Yesterday_Weight'] >= boundary
+        today_large = group['Weight'] >= boundary
+        crossed = valid & (yesterday_large != today_large)
 
-        for idx in range(len(group)):
-            weight = group.iloc[idx]['Weight']
+        crossing_indices = group.index[crossed].tolist()
+        if not crossing_indices:
+            continue
 
-            if not started_small and small_min <= weight < small_max:
-                started_small = True
-                small_period_start_idx = idx
+        crossings_for_ticker = []
+        for idx in crossing_indices:
+            row = group.loc[idx]
+            direction = 'Starter' if row['Weight'] >= boundary else 'Residual'
+            crossings_for_ticker.append({'idx': group.index.get_loc(idx), 'date': row['Date'], 'direction': direction})
 
-            if started_small and weight >= grad_threshold:
-                graduation_date = group.iloc[idx]['Date']
-                graduated_stocks[ticker] = {
-                    'graduation_date': graduation_date,
-                    'small_start_idx': small_period_start_idx
-                }
-                break
+        ticker_first_direction[ticker] = crossings_for_ticker[0]['direction']
 
-    if len(graduated_stocks) == 0:
-        return pd.DataFrame(), pd.DataFrame(), {}
+        # Build crossing_df records with before/after windows
+        for ci, crossing in enumerate(crossings_for_ticker):
+            before_start = crossings_for_ticker[ci - 1]['idx'] if ci > 0 else 0
+            after_end = crossings_for_ticker[ci + 1]['idx'] - 1 if ci < len(crossings_for_ticker) - 1 else len(group) - 1
 
-    # Collect detailed returns for graduated stocks
-    all_returns = []
-    for ticker, grad_info in graduated_stocks.items():
-        ticker_df = df[df['Bloomberg Name'] == ticker].copy()
-        ticker_df = ticker_df.sort_values('Date').reset_index(drop=True)
+            before_returns = group.iloc[before_start:crossing['idx']]['Daily_Return'].dropna()
+            after_returns = group.iloc[crossing['idx']:after_end + 1]['Daily_Return'].dropna()
 
-        graduation_date = grad_info['graduation_date']
-        small_start_idx = grad_info['small_start_idx']
-
-        for idx in range(len(ticker_df)):
-            row = ticker_df.iloc[idx]
-            if pd.isna(row['Yesterday_Price']):
-                continue
-            if idx < small_start_idx:
-                continue
-
-            period = label_before if row['Date'] < graduation_date else label_after
-
-            all_returns.append({
+            crossing_records.append({
                 'Ticker': ticker,
-                'Date': row['Date'],
-                'Weight': row['Weight'],
-                'Daily_Return': row['Daily_Return'],
-                'Daily_PnL': row['Daily_PnL'],
-                'Period': period,
-                'Graduation_Date': graduation_date
+                'Direction': crossing['direction'],
+                'Crossing_Date': crossing['date'],
+                'Days_Before_Crossing': len(before_returns),
+                'Days_After_Crossing': len(after_returns),
+                'Avg_Return_Before_Crossing': before_returns.mean() * 100 if len(before_returns) > 0 else 0,
+                'Avg_Return_After_Crossing': after_returns.mean() * 100 if len(after_returns) > 0 else 0,
             })
 
-    returns_df = pd.DataFrame(all_returns)
+    crossing_df = pd.DataFrame(crossing_records)
 
-    # Create summary with detailed statistics
-    summary_data = []
-    if len(returns_df) > 0:
-        before_df = returns_df[returns_df['Period'] == label_before]
-        after_df = returns_df[returns_df['Period'] == label_after]
-
-        summary_data.append({
-            'ETF': etf_name,
-            'Num_Graduated_Stocks': len(graduated_stocks),
-            'Total_Records_Before': len(before_df),
-            'Total_Records_After': len(after_df),
-            'Mean_Return_Before_%': before_df['Daily_Return'].mean() * 100 if len(before_df) > 0 else 0,
-            'Mean_Return_After_%': after_df['Daily_Return'].mean() * 100 if len(after_df) > 0 else 0,
-            'Median_Return_Before_%': before_df['Daily_Return'].median() * 100 if len(before_df) > 0 else 0,
-            'Median_Return_After_%': after_df['Daily_Return'].median() * 100 if len(after_df) > 0 else 0,
-            'Std_Return_Before_%': before_df['Daily_Return'].std() * 100 if len(before_df) > 0 else 0,
-            'Std_Return_After_%': after_df['Daily_Return'].std() * 100 if len(after_df) > 0 else 0,
-            'Mean_PnL_Before': before_df['Daily_PnL'].mean() if len(before_df) > 0 else 0,
-            'Mean_PnL_After': after_df['Daily_PnL'].mean() if len(after_df) > 0 else 0,
-            'Total_PnL_Before': before_df['Daily_PnL'].sum() if len(before_df) > 0 else 0,
-            'Total_PnL_After': after_df['Daily_PnL'].sum() if len(after_df) > 0 else 0
-        })
-
-    summary_df = pd.DataFrame(summary_data)
-    return summary_df, returns_df, graduated_stocks
-
-# ============================================================================
-# STARTER/RESIDUAL ANALYSIS FUNCTIONS (FULL VERSION WITH Reappeared)
-# ============================================================================
-
-@st.cache_data
-def calculate_starter_residual(etf_name: str, weight_range: dict) -> tuple:
-    """
-    Full starter/residual analysis with Reappeared positions
-    Matches original CLI version
-    """
-    df = load_etf_data(etf_name)
-    if df.empty:
-        return {}, pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
-
-    df = df.sort_values(['Bloomberg Name', 'Date'])
-
-    # ===== STARTERS =====
-    first_appearance = df.groupby('Bloomberg Name').first().reset_index()
-    starter_tickers = first_appearance[
-        (first_appearance['Weight'] >= weight_range['min']) &
-        (first_appearance['Weight'] < weight_range['max'])
-    ]['Bloomberg Name'].unique()
-
-    starter_details = []
-    for ticker in starter_tickers:
-        ticker_data = df[df['Bloomberg Name'] == ticker].copy()
-        entry_date = ticker_data['Date'].min()
-        entry_weight = ticker_data['Weight'].iloc[0]
-        max_weight = ticker_data['Weight'].max()
-        final_weight = ticker_data['Weight'].iloc[-1]
-        final_date = ticker_data['Date'].max()
-
-        threshold = weight_range['max']
-        if max_weight >= threshold:
-            outcome = 'Graduated to Large'
-            grad_dates = ticker_data[ticker_data['Weight'] >= threshold]['Date']
-            days_to_outcome = (grad_dates.min() - entry_date).days if len(grad_dates) > 0 else 0
-        elif final_weight == 0 or pd.isna(final_weight):
-            outcome = 'Dropped'
-            non_zero = ticker_data[ticker_data['Weight'] > 0]
-            days_to_outcome = (non_zero['Date'].max() - entry_date).days if len(non_zero) > 0 else 0
+    # Build returns_df with Period labels (vectorized)
+    # Classify each ticker: crossed tickers use first direction, others are Native
+    all_large = df.groupby('Bloomberg Name')['Weight'].apply(lambda w: (w >= boundary).all())
+    ticker_period = {}
+    for ticker in df['Bloomberg Name'].unique():
+        if ticker in ticker_first_direction:
+            ticker_period[ticker] = ticker_first_direction[ticker]
+        elif all_large[ticker]:
+            ticker_period[ticker] = 'Native Large'
         else:
-            outcome = 'Still Small'
-            days_to_outcome = (final_date - entry_date).days
+            ticker_period[ticker] = 'Native Small'
 
-        starter_details.append({
-            'Bloomberg Name': ticker,
-            'Entry Date': entry_date,
-            'Entry Weight %': entry_weight,
-            'Max Weight Achieved %': max_weight,
-            'Final Weight %': final_weight,
-            'Outcome': outcome,
-            'Days to Outcome': days_to_outcome,
-            'Days as Small Position': days_to_outcome
-        })
+    returns_df = df[df['Daily_Return'].notna()][['Date', 'Bloomberg Name', 'Weight', 'Daily_Return', 'Daily_PnL']].copy()
+    returns_df.rename(columns={'Bloomberg Name': 'Ticker'}, inplace=True)
+    returns_df['Period'] = returns_df['Ticker'].map(ticker_period)
 
-    starters_df = pd.DataFrame(starter_details)
+    # Build category_summary from ticker_period (single source of truth)
+    period_counts = pd.Series(ticker_period).value_counts()
+    category_summary = {}
+    for period, key in [('Starter', 'starter'), ('Residual', 'residual'),
+                        ('Native Small', 'native_small'), ('Native Large', 'native_large')]:
+        category_summary[f'count_{key}'] = int(period_counts.get(period, 0))
+        subset = returns_df.loc[returns_df['Period'] == period, 'Daily_Return']
+        category_summary[f'mean_return_{key}'] = subset.mean() * 100 if len(subset) > 0 else 0
 
-    # ===== RESIDUALS =====
-    residual_details = []
-    for ticker in df['Bloomberg Name'].unique():
-        ticker_data = df[df['Bloomberg Name'] == ticker].copy()
-        ticker_data = ticker_data.sort_values('Date')
-
-        ticker_data['Prev_Date'] = ticker_data['Date'].shift(1)
-        gap_days = (ticker_data['Date'] - ticker_data['Prev_Date']).dt.days
-        valid_prev = gap_days <= 7
-
-        ticker_data['Was_Large'] = (ticker_data['Weight'].shift(1) >= weight_range['max']) & valid_prev
-        ticker_data['Is_Small'] = (
-            (ticker_data['Weight'] >= weight_range['min']) &
-            (ticker_data['Weight'] < weight_range['max'])
-        )
-        ticker_data['Transition'] = ticker_data['Was_Large'] & ticker_data['Is_Small']
-
-        transitions = ticker_data[ticker_data['Transition']]
-        for _, trans in transitions.iterrows():
-            trans_date = trans['Date']
-            before = ticker_data[ticker_data['Date'] < trans_date]
-            after = ticker_data[ticker_data['Date'] >= trans_date]
-
-            peak_weight = before['Weight'].max() if len(before) > 0 else 0
-            trans_weight = trans['Weight']
-            future_max = after['Weight'].max() if len(after) > 0 else 0
-            final_weight = after['Weight'].iloc[-1] if len(after) > 0 else 0
-
-            threshold = weight_range['max']
-            if future_max >= threshold:
-                outcome = 'Recovered to Large'
-                recovery_dates = after[after['Weight'] >= threshold]['Date']
-                days_as_residual = (recovery_dates.min() - trans_date).days if len(recovery_dates) > 0 else 0
-            elif final_weight == 0 or pd.isna(final_weight):
-                outcome = 'Dropped'
-                non_zero = after[after['Weight'] > 0]
-                days_as_residual = (non_zero['Date'].max() - trans_date).days if len(non_zero) > 0 else 0
-            else:
-                outcome = 'Still Residual'
-                days_as_residual = (after['Date'].max() - trans_date).days if len(after) > 0 else 0
-
-            residual_details.append({
-                'Bloomberg Name': ticker,
-                'Transition Date': trans_date,
-                'Peak Weight Before %': peak_weight,
-                'Weight at Transition %': trans_weight,
-                'Weight Drawdown %': peak_weight - trans_weight,
-                'Max Weight After %': future_max,
-                'Final Weight %': final_weight,
-                'Outcome': outcome,
-                'Days as Residual': days_as_residual
-            })
-
-    residuals_df = pd.DataFrame(residual_details)
-
-    # ===== REAPPEARED =====
-    reappeared_details = []
-    for ticker in df['Bloomberg Name'].unique():
-        ticker_data = df[df['Bloomberg Name'] == ticker].copy()
-        ticker_data = ticker_data.sort_values('Date')
-        ticker_data['Date_Diff'] = ticker_data['Date'].diff().dt.days
-
-        gaps = ticker_data[ticker_data['Date_Diff'] > 30]
-        for _, gap in gaps.iterrows():
-            gap_date = gap['Date']
-            before_gap = ticker_data[ticker_data['Date'] < gap_date]['Date'].max()
-
-            reappeared_details.append({
-                'Bloomberg Name': ticker,
-                'Exit Date': before_gap,
-                'Re-entry Date': gap_date,
-                'Days Absent': gap['Date_Diff'],
-                'Re-entry Weight %': gap['Weight']
-            })
-
-    reappeared_df = pd.DataFrame(reappeared_details)
-
-    # ===== SUMMARY =====
-    graduated_count = len(starters_df[starters_df['Outcome'] == 'Graduated to Large']) if len(starters_df) > 0 else 0
-    still_small_count = len(starters_df[starters_df['Outcome'] == 'Still Small']) if len(starters_df) > 0 else 0
-    dropped_count = len(starters_df[starters_df['Outcome'] == 'Dropped']) if len(starters_df) > 0 else 0
-    recovered_count = len(residuals_df[residuals_df['Outcome'] == 'Recovered to Large']) if len(residuals_df) > 0 else 0
-    still_residual_count = len(residuals_df[residuals_df['Outcome'] == 'Still Residual']) if len(residuals_df) > 0 else 0
-    residual_dropped_count = len(residuals_df[residuals_df['Outcome'] == 'Dropped']) if len(residuals_df) > 0 else 0
-
-    summary = {
-        'total_starters': len(starters_df),
-        'total_residuals': len(residuals_df),
-        'total_reappeared': len(reappeared_df),
-        'starter_graduated': graduated_count,
-        'starter_still_small': still_small_count,
-        'starter_dropped': dropped_count,
-        'residual_recovered': recovered_count,
-        'residual_still_residual': still_residual_count,
-        'residual_dropped': residual_dropped_count,
-        'starter_graduation_rate': graduated_count / len(starters_df) * 100 if len(starters_df) > 0 else 0,
-        'residual_recovery_rate': recovered_count / len(residuals_df) * 100 if len(residuals_df) > 0 else 0,
-        'avg_days_starter': starters_df['Days as Small Position'].mean() if len(starters_df) > 0 else 0,
-        'avg_days_residual': residuals_df['Days as Residual'].mean() if len(residuals_df) > 0 else 0,
-        'avg_days_absent': reappeared_df['Days Absent'].mean() if len(reappeared_df) > 0 else 0
-    }
-
-    return summary, starters_df, residuals_df, reappeared_df
+    return crossing_df, returns_df, category_summary
 
 # ============================================================================
 # DOWNLOAD HELPER FUNCTIONS
