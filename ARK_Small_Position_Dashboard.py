@@ -79,6 +79,6 @@ st.markdown("""
 | **P&L Analysis** | Calculate adjusted P&L (accounting for inflows/outflows) for positions in the selected weight range. Identifies which small positions contribute most to portfolio gains or losses. |
 | **Position Analysis** | Track how the number of positions in each weight range changes over time, along with the market value allocated to each range as a percentage of total AUM. |
 | **Alternative Returns** | Compare three return streams: actual full-ETF returns, returns excluding small positions, and returns of small positions only — to quantify the impact of small positions on overall performance. |
-| **Graduation Analysis** | Track stocks that "graduated" from <1% weight to >=1%, comparing their daily returns and P&L before vs after graduation to evaluate ARK's position-sizing decisions. |
-| **Starter/Residual** | Distinguish between new entries (starters) entering the weight range from below vs declining positions (residuals) falling into the range from above, and track their subsequent outcomes. |
+| **Crossing Analysis** | Dual-boundary crossing analysis classifying stocks by how they move between three zones (below range, in range, above range). Tracks 6 crossing types (e.g. Smaller to Current, Current to Larger) and 3 native types, with cumulative return, P&L, and distribution charts. |
+| **Stock Drill-Down** | Select any stock to view its weight and price history on a dual-axis chart, with crossing events marked as colored markers and both boundary lines displayed. |
 """)
