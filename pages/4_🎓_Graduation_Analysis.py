@@ -139,7 +139,7 @@ st.divider()
 # ============================================================================
 # Stacked Area — Daily P&L Contribution by Category
 # ============================================================================
-st.header("Daily P&L Contribution by Category")
+st.header("Cumulative Daily P&L by Category")
 
 if not returns_df.empty:
     existing_periods = returns_df['Period'].unique().tolist()
