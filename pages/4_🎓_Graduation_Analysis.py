@@ -255,7 +255,26 @@ if not returns_df.empty:
             fillcolor='rgba(0,0,0,0)',
             width=0.5,
             showlegend=False,
-            hovertemplate='%{y:.2f}%<extra></extra>',
+            hoverinfo='skip',
+        ))
+        # Invisible bar spanning box range for single hover tooltip
+        fig_dist.add_trace(go.Bar(
+            x=[period],
+            y=[whisker_hi - whisker_lo],
+            base=whisker_lo,
+            width=0.5,
+            marker=dict(color='rgba(0,0,0,0)'),
+            showlegend=False,
+            hovertemplate=(
+                f'<b>{period}</b><br>'
+                f'max: {whisker_hi:.2f}%<br>'
+                f'q3: {q3:.2f}%<br>'
+                f'median: {median:.2f}%<br>'
+                f'q1: {q1:.2f}%<br>'
+                f'min: {whisker_lo:.2f}%<br>'
+                f'n={len(subset):,}  mean={subset.mean():.2f}%'
+                '<extra></extra>'
+            ),
         ))
 
     fig_dist.update_layout(
