@@ -44,7 +44,6 @@ if position_counts.empty:
 # ============================================================================
 # Section 1: Position Counts
 # ============================================================================
-st.header("Position Counts by Weight Range")
 
 # Date range slider
 date_range_pos = st.slider("Date Range", min_value=position_counts['Date'].min().to_pydatetime(),
@@ -80,48 +79,9 @@ fig_counts.update_layout(
 
 st.plotly_chart(fig_counts, use_container_width=True)
 
-# Current snapshot
-st.subheader("Current Position Distribution")
-
-latest = position_counts.iloc[-1]
-current_counts = []
-for wr in WEIGHT_RANGES:
-    if wr['label'] in latest:
-        current_counts.append({
-            'Range': wr['label'],
-            'Count': latest[wr['label']]
-        })
-
-current_df = pd.DataFrame(current_counts)
-
-col1, col2 = st.columns(2)
-
-with col1:
-    fig_bar = px.bar(
-        current_df,
-        x='Range',
-        y='Count',
-        title='Current Position Count by Range',
-        color='Range',
-        color_discrete_sequence=colors
-    )
-    fig_bar.update_layout(showlegend=False)
-    fig_bar.update_traces(hovertemplate='%{x}<br>Count: %{y:.2f}<extra></extra>')
-    st.plotly_chart(fig_bar, use_container_width=True)
-
-with col2:
-    # Metrics cards
-    cols = st.columns(3)
-    for i, row in current_df.iterrows():
-        with cols[i % 3]:
-            st.metric(row['Range'], f"{int(row['Count']):,}")
-
-st.divider()
-
 # ============================================================================
 # Section 2: Market Value Analysis
 # ============================================================================
-st.header(f"Market Value Analysis - {selected_range['label']}")
 
 if not market_value.empty:
     # Summary metrics
@@ -190,12 +150,9 @@ if not market_value.empty:
 else:
     st.warning("No market value data available for the selected range.")
 
-st.divider()
-
 # ============================================================================
 # Section 3: Market Value Distribution by Range
 # ============================================================================
-st.header("Market Value Distribution Across Ranges")
 
 if not mv_by_range.empty:
     # Date range slider for distribution charts
