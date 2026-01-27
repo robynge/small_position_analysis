@@ -169,7 +169,7 @@ if not returns_df.empty:
     daily_pnl = daily_pnl.set_index(['Date', 'Period']).reindex(full_idx, fill_value=0).reset_index()
     daily_pnl['Cumulative_PnL'] = daily_pnl.groupby('Period')['Daily_PnL'].cumsum()
 
-    fig_area = px.area(
+    fig_area = px.line(
         daily_pnl,
         x='Date',
         y='Cumulative_PnL',
