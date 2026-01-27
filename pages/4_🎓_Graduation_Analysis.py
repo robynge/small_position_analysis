@@ -259,6 +259,7 @@ if not crossing_df.empty:
 
     # Exclude MCRB (extreme outlier)
     scatter_df = crossing_df[~crossing_df['Ticker'].str.contains('MCRB', case=False, na=False)].copy()
+    scatter_df['Date_Str'] = pd.to_datetime(scatter_df['Crossing_Date']).dt.strftime('%m/%d/%Y')
 
     fig_scatter = px.scatter(
         scatter_df,
@@ -266,7 +267,7 @@ if not crossing_df.empty:
         y='Avg_Return_After_Crossing',
         color='Direction',
         color_discrete_map=color_map_dir,
-        custom_data=['Ticker', 'Crossing_Date', 'Days_Before_Crossing', 'Days_After_Crossing'],
+        custom_data=['Ticker', 'Date_Str', 'Days_Before_Crossing', 'Days_After_Crossing'],
     )
     fig_scatter.update_traces(
         hovertemplate=(
