@@ -147,7 +147,7 @@ if not returns_df.empty:
         xaxis_title='',
         hovermode='x unified',
     )
-    fig_cum.update_traces(hovertemplate='%{y:.4f}%')
+    fig_cum.update_traces(hovertemplate='%{y:.2f}%')
     st.plotly_chart(fig_cum, use_container_width=True)
 else:
     st.info("No returns data available.")
@@ -219,7 +219,7 @@ if not returns_df.empty:
         xaxis_title='',
         showlegend=False,
     )
-    fig_violin.update_traces(hovertemplate='%{y:.4f}%<extra></extra>')
+    fig_violin.update_traces(hovertemplate='%{y:.2f}%<extra></extra>')
 
     for period in active_order:
         subset = plot_df[plot_df['Period'] == period]['Daily_Return_%']
@@ -230,7 +230,7 @@ if not returns_df.empty:
         fig_violin.add_annotation(
             x=period,
             y=q75 + 1.5 * iqr,
-            text=f"n={len(subset):,}  mean={subset.mean():.4f}%",
+            text=f"n={len(subset):,}  mean={subset.mean():.2f}%",
             showarrow=False,
             font=dict(size=11),
             yshift=15,
@@ -321,8 +321,8 @@ if not crossing_df.empty:
     filtered_crossings = filtered_crossings.sort_values('Crossing_Date', ascending=False)
 
     display_crossings = filtered_crossings.copy()
-    display_crossings['Avg_Return_Before_Crossing'] = display_crossings['Avg_Return_Before_Crossing'].round(4)
-    display_crossings['Avg_Return_After_Crossing'] = display_crossings['Avg_Return_After_Crossing'].round(4)
+    display_crossings['Avg_Return_Before_Crossing'] = display_crossings['Avg_Return_Before_Crossing'].round(2)
+    display_crossings['Avg_Return_After_Crossing'] = display_crossings['Avg_Return_After_Crossing'].round(2)
     st.dataframe(display_crossings, use_container_width=True, height=400)
 
     st.caption(f"Total crossing events: {len(filtered_crossings)}")

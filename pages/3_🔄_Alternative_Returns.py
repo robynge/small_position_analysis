@@ -53,20 +53,20 @@ small_cumulative = returns_df['Cumulative_SmallOnly'].iloc[-1] * 100
 with col1:
     st.subheader("Actual")
     st.metric("Cumulative", f"{actual_cumulative:.2f}%")
-    st.metric("Mean Daily", f"{returns_df['Return_Actual'].mean() * 100:.4f}%")
-    st.metric("Std Dev", f"{returns_df['Return_Actual'].std() * 100:.4f}%")
+    st.metric("Mean Daily", f"{returns_df['Return_Actual'].mean() * 100:.2f}%")
+    st.metric("Std Dev", f"{returns_df['Return_Actual'].std() * 100:.2f}%")
 
 with col2:
     st.subheader(f"Excl. {selected_range['label']}")
     st.metric("Cumulative", f"{exclude_cumulative:.2f}%")
-    st.metric("Mean Daily", f"{returns_df['Return_ExcludeSmall'].mean() * 100:.4f}%")
-    st.metric("Std Dev", f"{returns_df['Return_ExcludeSmall'].std() * 100:.4f}%")
+    st.metric("Mean Daily", f"{returns_df['Return_ExcludeSmall'].mean() * 100:.2f}%")
+    st.metric("Std Dev", f"{returns_df['Return_ExcludeSmall'].std() * 100:.2f}%")
 
 with col3:
     st.subheader(f"{selected_range['label']} Only")
     st.metric("Cumulative", f"{small_cumulative:.2f}%")
-    st.metric("Mean Daily", f"{returns_df['Return_SmallOnly'].mean() * 100:.4f}%")
-    st.metric("Std Dev", f"{returns_df['Return_SmallOnly'].std() * 100:.4f}%")
+    st.metric("Mean Daily", f"{returns_df['Return_SmallOnly'].mean() * 100:.2f}%")
+    st.metric("Std Dev", f"{returns_df['Return_SmallOnly'].std() * 100:.2f}%")
 
 with col4:
     st.subheader("Impact")

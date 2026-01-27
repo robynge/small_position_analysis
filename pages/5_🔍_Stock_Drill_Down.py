@@ -203,8 +203,8 @@ if not ticker_crossings.empty:
     display = ticker_crossings[['Direction', 'Crossing_Date', 'Days_Before_Crossing',
                                  'Days_After_Crossing', 'Avg_Return_Before_Crossing',
                                  'Avg_Return_After_Crossing']].copy()
-    display['Avg_Return_Before_Crossing'] = display['Avg_Return_Before_Crossing'].round(4)
-    display['Avg_Return_After_Crossing'] = display['Avg_Return_After_Crossing'].round(4)
+    display['Avg_Return_Before_Crossing'] = display['Avg_Return_Before_Crossing'].round(2)
+    display['Avg_Return_After_Crossing'] = display['Avg_Return_After_Crossing'].round(2)
     st.dataframe(display, use_container_width=True)
 else:
     st.info(f"No crossing events for {selected_ticker} at boundaries {lo}% / {hi}%.")
