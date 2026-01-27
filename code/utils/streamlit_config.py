@@ -651,7 +651,7 @@ def format_percentage(value):
 
 def render_sidebar():
     init_session_state()
-    st.sidebar.title("Settings")
+    st.sidebar.title("ARK Small Position Dashboard")
 
     etf_idx = ETFS.index(st.session_state.selected_etf) if st.session_state.selected_etf in ETFS else 0
     selected_etf = st.sidebar.selectbox("Select ETF", ETFS, index=etf_idx, key='etf_selector')
@@ -663,10 +663,5 @@ def render_sidebar():
         index=st.session_state.selected_range_idx, key='range_selector'
     )
     st.session_state.selected_range_idx = range_labels.index(selected_range_label)
-
-    st.sidebar.divider()
-    st.sidebar.markdown(f"**Current Selection:**")
-    st.sidebar.markdown(f"- ETF: `{selected_etf}`")
-    st.sidebar.markdown(f"- Range: `{selected_range_label}`")
 
     return selected_etf, WEIGHT_RANGES[st.session_state.selected_range_idx]
