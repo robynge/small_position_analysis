@@ -206,6 +206,23 @@ if not returns_df.empty:
     existing_periods = plot_df['Period'].unique().tolist()
     active_order = [c for c in category_order if c in existing_periods]
 
+    # Auto-detect outlier tickers: daily return beyond 99.5th percentile
+    violin_threshold = plot_df['Daily_Return_%'].abs().quantile(0.995)
+    violin_outlier_tickers = plot_df[
+        plot_df['Daily_Return_%'].abs() > violin_threshold
+    ]['Ticker'].unique().tolist()
+
+    violin_outlier_mode = st.radio(
+        "Outliers",
+        options=["Exclude Outliers", "Include Outliers"],
+        horizontal=True,
+        key="violin_outlier_mode",
+        label_visibility="collapsed",
+    )
+
+    if violin_outlier_mode == "Exclude Outliers" and violin_outlier_tickers:
+        plot_df = plot_df[~plot_df['Ticker'].isin(violin_outlier_tickers)].copy()
+
     fig_violin = px.violin(
         plot_df,
         x='Period',
@@ -238,6 +255,9 @@ if not returns_df.empty:
         )
 
     st.plotly_chart(fig_violin, use_container_width=True)
+    if violin_outlier_tickers and violin_outlier_mode == "Exclude Outliers":
+        excluded_names = ", ".join(sorted(set(t.replace(" US Equity", "") for t in violin_outlier_tickers)))
+        st.caption(f"\\* Excluded (daily return beyond 99.5th percentile, >{violin_threshold:.1f}%): {excluded_names}")
 else:
     st.info("No returns data available.")
 
