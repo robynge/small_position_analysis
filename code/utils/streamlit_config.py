@@ -120,6 +120,18 @@ def calculate_pnl(etf_name: str, weight_range: dict) -> tuple:
     df.loc[invalid_prev, 'Day0_Price'] = float('nan')
     df.drop(columns=['Day0_Date'], inplace=True)
 
+    # Adjust for stock splits: both price and position change significantly in opposite directions
+    valid_both = (df['Day0_Position'] > 0) & (df['Position'] > 0) & df['Day0_Price'].notna()
+    pos_ratio = df['Day0_Position'] / df['Position']
+    price_ratio = df['Stock_Price'] / df['Day0_Price']
+    price_big = (price_ratio > 1.5) | (price_ratio < 0.67)
+    pos_big = (pos_ratio > 1.5) | (pos_ratio < 0.67)
+    opposite = ((price_ratio > 1) & (pos_ratio > 1)) | ((price_ratio < 1) & (pos_ratio < 1))
+    mv_preserved = (price_ratio / pos_ratio).between(0.5, 2.0)
+    is_split = valid_both & price_big & pos_big & opposite & mv_preserved
+    df.loc[is_split, 'Day0_Price'] = df.loc[is_split, 'Day0_Price'] * pos_ratio[is_split]
+    df.loc[is_split, 'Day0_Position'] = df.loc[is_split, 'Position']
+
     # Current day (Day1) values
     df['Day1_Position'] = df['Position']
     df['Day1_Price'] = df['Stock_Price']
@@ -286,6 +298,7 @@ def calculate_alternative_returns(etf_name: str, weight_range: dict) -> pd.DataF
 
     df = df.sort_values(['Bloomberg Name', 'Date']).reset_index(drop=True)
     df['Yesterday_Price'] = df.groupby('Bloomberg Name')['Stock_Price'].shift(1)
+    df['Yesterday_Position'] = df.groupby('Bloomberg Name')['Position'].shift(1)
     df['Yesterday_Date'] = df.groupby('Bloomberg Name')['Date'].shift(1)
 
     # Invalidate if gap > 7 days or previous price is 0
@@ -293,6 +306,18 @@ def calculate_alternative_returns(etf_name: str, weight_range: dict) -> pd.DataF
     invalid_prev = (gap_days > 7) | (df['Yesterday_Price'] == 0)
     df.loc[invalid_prev, 'Yesterday_Price'] = float('nan')
     df.drop(columns=['Yesterday_Date'], inplace=True)
+
+    # Adjust for stock splits: both price and position change significantly in opposite directions
+    valid_both = (df['Yesterday_Position'] > 0) & (df['Position'] > 0) & df['Yesterday_Price'].notna()
+    pos_ratio = df['Yesterday_Position'] / df['Position']
+    price_ratio = df['Stock_Price'] / df['Yesterday_Price']
+    price_big = (price_ratio > 1.5) | (price_ratio < 0.67)
+    pos_big = (pos_ratio > 1.5) | (pos_ratio < 0.67)
+    opposite = ((price_ratio > 1) & (pos_ratio > 1)) | ((price_ratio < 1) & (pos_ratio < 1))
+    mv_preserved = (price_ratio / pos_ratio).between(0.5, 2.0)
+    is_split = valid_both & price_big & pos_big & opposite & mv_preserved
+    df.loc[is_split, 'Yesterday_Price'] = df.loc[is_split, 'Yesterday_Price'] * pos_ratio[is_split]
+    df.drop(columns=['Yesterday_Position'], inplace=True)
 
     df['Stock_Return'] = (df['Stock_Price'] - df['Yesterday_Price']) / df['Yesterday_Price']
 
@@ -387,6 +412,18 @@ def calculate_graduation(etf_name: str) -> tuple:
     invalid_prev = (gap_days > 7) | (df['Yesterday_Price'] == 0)
     df.loc[invalid_prev, ['Yesterday_Price', 'Yesterday_Position', 'Yesterday_Weight']] = float('nan')
     df.drop(columns=['Yesterday_Date'], inplace=True)
+
+    # Adjust for stock splits: both price and position change significantly in opposite directions
+    valid_both = (df['Yesterday_Position'] > 0) & (df['Position'] > 0) & df['Yesterday_Price'].notna()
+    pos_ratio = df['Yesterday_Position'] / df['Position']
+    price_ratio = df['Stock_Price'] / df['Yesterday_Price']
+    price_big = (price_ratio > 1.5) | (price_ratio < 0.67)
+    pos_big = (pos_ratio > 1.5) | (pos_ratio < 0.67)
+    opposite = ((price_ratio > 1) & (pos_ratio > 1)) | ((price_ratio < 1) & (pos_ratio < 1))
+    mv_preserved = (price_ratio / pos_ratio).between(0.5, 2.0)
+    is_split = valid_both & price_big & pos_big & opposite & mv_preserved
+    df.loc[is_split, 'Yesterday_Price'] = df.loc[is_split, 'Yesterday_Price'] * pos_ratio[is_split]
+    df.loc[is_split, 'Yesterday_Position'] = df.loc[is_split, 'Position']
 
     df['Daily_Return'] = (df['Stock_Price'] - df['Yesterday_Price']) / df['Yesterday_Price']
     df['Daily_PnL'] = df['Yesterday_Position'] * (df['Stock_Price'] - df['Yesterday_Price'])
