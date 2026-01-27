@@ -234,7 +234,8 @@ if not returns_df.empty:
     fig_dist.update_traces(
         marker=dict(size=3, opacity=0.4),
         jitter=0.4,
-        hovertemplate='%{y:.2f}%<extra></extra>',
+        hoverinfo='skip',
+        hovertemplate=None,
     )
 
     # Overlay box plot
@@ -252,7 +253,7 @@ if not returns_df.empty:
             marker_color='rgba(255,255,255,0.6)',
             line=dict(color='white', width=1.5),
             fillcolor='rgba(0,0,0,0)',
-            width=0.3,
+            width=0.5,
             showlegend=False,
             hovertemplate=(
                 f'<b>{period}</b><br>'
