@@ -66,21 +66,24 @@ cts = summary.get('crossing_type_counts', {})
 ns, nsm, nl = summary['count_native_smaller'], summary['count_native_small'], summary['count_native_large']
 hs, hr = summary['count_had_starter'], summary['count_had_residual']
 stf, rtg = summary['count_starter_then_fell'], summary['count_residual_then_grew']
+total = summary['total_stocks_ever']
+current = summary['current_holdings']
+crossed = total - ns - nsm - nl
 
-overview_md = f"""
-| | Current Holdings | Total Ever | Native Smaller | Native Small | Native Large | Had Starter | Had Residual | Starter then fell | Residual then grew |
-|---|---|---|---|---|---|---|---|---|---|
-| **Stocks** | {summary['current_holdings']} | {summary['total_stocks_ever']} | {ns} | {nsm} | {nl} | {hs} | {hr} | {stf}/{hs} | {rtg}/{hr} |
-"""
-st.markdown(overview_md)
+crossing_parts = []
+for t in ['Small Starter', 'Big Starter', 'Super Starter', 'Small Residual', 'Big Residual', 'Super Residual']:
+    c = cts.get(t, 0)
+    if c > 0:
+        crossing_parts.append(f"{c} {t}")
+crossing_str = ", ".join(crossing_parts) if crossing_parts else "none"
 
-if cts:
-    type_order = ['Small Starter', 'Big Starter', 'Super Starter',
-                  'Small Residual', 'Big Residual', 'Super Residual']
-    header = "| | " + " | ".join(type_order) + " |"
-    sep = "|---|" + "|".join(["---"] * 6) + "|"
-    vals = "| **Events** | " + " | ".join(str(cts.get(t, 0)) for t in type_order) + " |"
-    st.markdown(f"{header}\n{sep}\n{vals}")
+st.markdown(
+    f"{selected_etf} has **{current}** current holdings out of **{total}** stocks ever held. "
+    f"Of these, **{ns}** are Native Smaller, **{nsm}** Native Small, and **{nl}** Native Large (never crossed either boundary). "
+    f"**{crossed}** stocks crossed at least one boundary, producing **{sum(cts.values())}** total crossing events ({crossing_str}). "
+    f"**{hs}** stocks had at least one upward crossing, **{hr}** had at least one downward crossing. "
+    f"Of those, **{stf}/{hs}** starters later fell back, and **{rtg}/{hr}** residuals later grew back."
+)
 
 st.divider()
 
@@ -158,6 +161,7 @@ if not returns_df.empty:
         yaxis_title='Cumulative P&L ($)',
         xaxis_title='',
         hovermode='x unified',
+        xaxis=dict(rangeslider=dict(visible=True, thickness=0.05)),
     )
     fig_area.update_traces(hovertemplate='$%{y:,.2f}')
     st.plotly_chart(fig_area, use_container_width=True)
