@@ -45,23 +45,16 @@ if position_counts.empty:
 # Section 1: Position Counts
 # ============================================================================
 
-# Date range slider
-date_range_pos = st.slider("Date Range", min_value=position_counts['Date'].min().to_pydatetime(),
-                           max_value=position_counts['Date'].max().to_pydatetime(),
-                           value=(position_counts['Date'].min().to_pydatetime(), position_counts['Date'].max().to_pydatetime()),
-                           key="position_date_range")
-plot_counts = position_counts[(position_counts['Date'] >= date_range_pos[0]) & (position_counts['Date'] <= date_range_pos[1])]
-
 fig_counts = go.Figure()
 
 range_labels = [wr['label'] for wr in WEIGHT_RANGES]
 colors = px.colors.qualitative.Set2
 
 for i, label in enumerate(range_labels):
-    if label in plot_counts.columns:
+    if label in position_counts.columns:
         fig_counts.add_trace(go.Scatter(
-            x=plot_counts['Date'],
-            y=plot_counts[label],
+            x=position_counts['Date'],
+            y=position_counts[label],
             name=label,
             mode='lines',
             line=dict(color=colors[i % len(colors)], width=2),
@@ -70,10 +63,14 @@ for i, label in enumerate(range_labels):
 
 fig_counts.update_layout(
     title=f'{selected_etf} - Position Counts by Weight Range',
-    xaxis_title='Date',
+    xaxis_title='',
     yaxis_title='Number of Positions',
     hovermode='x unified',
-    xaxis=dict(hoverformat='%Y-%m-%d'),
+    xaxis=dict(
+        hoverformat='%Y-%m-%d',
+        rangeslider=dict(visible=True, thickness=0.1),
+        title=dict(text="Date Range", font=dict(size=11, color='gray'), standoff=0),
+    ),
     legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1)
 )
 
@@ -84,19 +81,12 @@ st.plotly_chart(fig_counts, use_container_width=True)
 # ============================================================================
 
 if not market_value.empty:
-    # Market Value trend chart
-    date_range_mv = st.slider("Date Range", min_value=market_value['Date'].min().to_pydatetime(),
-                              max_value=market_value['Date'].max().to_pydatetime(),
-                              value=(market_value['Date'].min().to_pydatetime(), market_value['Date'].max().to_pydatetime()),
-                              key="mv_date_range")
-    plot_mv = market_value[(market_value['Date'] >= date_range_mv[0]) & (market_value['Date'] <= date_range_mv[1])]
-
     fig_mv = make_subplots(specs=[[{"secondary_y": True}]])
 
     fig_mv.add_trace(
         go.Scatter(
-            x=plot_mv['Date'],
-            y=plot_mv['Range_MV'],
+            x=market_value['Date'],
+            y=market_value['Range_MV'],
             name='Market Value',
             fill='tozeroy',
             line=dict(color='#3498db', width=2),
@@ -107,8 +97,8 @@ if not market_value.empty:
 
     fig_mv.add_trace(
         go.Scatter(
-            x=plot_mv['Date'],
-            y=plot_mv['Pct_of_AUM'],
+            x=market_value['Date'],
+            y=market_value['Pct_of_AUM'],
             name='% of AUM',
             line=dict(color='#e74c3c', width=2, dash='dot'),
             hovertemplate='%{x}<br>% of AUM: %{y:.2f}%<extra></extra>'
@@ -119,10 +109,13 @@ if not market_value.empty:
     fig_mv.update_layout(
         title=f'{selected_etf} - {selected_range["label"]} Market Value (Weekly)',
         hovermode='x unified',
-        xaxis=dict(hoverformat='%Y-%m-%d'),
+        xaxis=dict(
+            hoverformat='%Y-%m-%d',
+            rangeslider=dict(visible=True, thickness=0.1),
+            title=dict(text="Date Range", font=dict(size=11, color='gray'), standoff=0),
+        ),
         legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1)
     )
-    fig_mv.update_xaxes(title_text='Date')
     fig_mv.update_yaxes(title_text='Market Value ($)', secondary_y=False)
     fig_mv.update_yaxes(title_text='% of AUM', secondary_y=True)
 
@@ -135,22 +128,15 @@ else:
 # ============================================================================
 
 if not mv_by_range.empty:
-    # Date range slider for distribution charts
-    date_range_dist = st.slider("Date Range", min_value=mv_by_range['Date'].min().to_pydatetime(),
-                                max_value=mv_by_range['Date'].max().to_pydatetime(),
-                                value=(mv_by_range['Date'].min().to_pydatetime(), mv_by_range['Date'].max().to_pydatetime()),
-                                key="dist_date_range")
-    plot_mv_range = mv_by_range[(mv_by_range['Date'] >= date_range_dist[0]) & (mv_by_range['Date'] <= date_range_dist[1])]
-
     # Stacked area chart
     fig_stacked = go.Figure()
 
     for i, wr in enumerate(WEIGHT_RANGES):
         pct_col = f'{wr["label"]}_Pct'
-        if pct_col in plot_mv_range.columns:
+        if pct_col in mv_by_range.columns:
             fig_stacked.add_trace(go.Scatter(
-                x=plot_mv_range['Date'],
-                y=plot_mv_range[pct_col],
+                x=mv_by_range['Date'],
+                y=mv_by_range[pct_col],
                 name=wr['label'],
                 stackgroup='one',
                 fillcolor=colors[i % len(colors)],
@@ -160,11 +146,15 @@ if not mv_by_range.empty:
 
     fig_stacked.update_layout(
         title=f'{selected_etf} - Market Value Distribution by Weight Range (%)',
-        xaxis_title='Date',
+        xaxis_title='',
         yaxis_title='% of Total AUM',
         yaxis=dict(range=[0, 100]),
         hovermode='x unified',
-        xaxis=dict(hoverformat='%Y-%m-%d'),
+        xaxis=dict(
+            hoverformat='%Y-%m-%d',
+            rangeslider=dict(visible=True, thickness=0.1),
+            title=dict(text="Date Range", font=dict(size=11, color='gray'), standoff=0),
+        ),
         legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1)
     )
 
@@ -175,10 +165,10 @@ if not mv_by_range.empty:
 
     for i, wr in enumerate(WEIGHT_RANGES):
         mv_col = f'{wr["label"]}_MV'
-        if mv_col in plot_mv_range.columns:
+        if mv_col in mv_by_range.columns:
             fig_mv_range.add_trace(go.Scatter(
-                x=plot_mv_range['Date'],
-                y=plot_mv_range[mv_col],
+                x=mv_by_range['Date'],
+                y=mv_by_range[mv_col],
                 name=wr['label'],
                 mode='lines',
                 line=dict(color=colors[i % len(colors)], width=2),
@@ -187,10 +177,14 @@ if not mv_by_range.empty:
 
     fig_mv_range.update_layout(
         title=f'{selected_etf} - Market Value by Weight Range ($)',
-        xaxis_title='Date',
+        xaxis_title='',
         yaxis_title='Market Value ($)',
         hovermode='x unified',
-        xaxis=dict(hoverformat='%Y-%m-%d'),
+        xaxis=dict(
+            hoverformat='%Y-%m-%d',
+            rangeslider=dict(visible=True, thickness=0.1),
+            title=dict(text="Date Range", font=dict(size=11, color='gray'), standoff=0),
+        ),
         legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1)
     )
 
