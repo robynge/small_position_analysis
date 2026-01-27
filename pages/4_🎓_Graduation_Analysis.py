@@ -267,13 +267,15 @@ if not returns_df.empty:
             showlegend=False,
             hovertemplate=(
                 f'<b>{period}</b><br>'
-                f'max: {whisker_hi:.2f}%<br>'
-                f'q3: {q3:.2f}%<br>'
-                f'median: {median:.2f}%<br>'
-                f'q1: {q1:.2f}%<br>'
-                f'min: {whisker_lo:.2f}%<br>'
-                f'n: {len(subset):,}<br>'
-                f'mean: {subset.mean():.2f}%'
+                f'<span style="font-family:monospace">'
+                f'Max:&nbsp;&nbsp;&nbsp;{whisker_hi:>8.2f}%<br>'
+                f'Q3:&nbsp;&nbsp;&nbsp;&nbsp;{q3:>8.2f}%<br>'
+                f'Median:{median:>8.2f}%<br>'
+                f'Q1:&nbsp;&nbsp;&nbsp;&nbsp;{q1:>8.2f}%<br>'
+                f'Min:&nbsp;&nbsp;&nbsp;{whisker_lo:>8.2f}%<br>'
+                f'Mean:&nbsp;&nbsp;{subset.mean():>8.2f}%<br>'
+                f'N:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{len(subset):>8,}'
+                f'</span>'
                 '<extra></extra>'
             ),
         ))
