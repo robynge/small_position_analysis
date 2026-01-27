@@ -81,38 +81,34 @@ st.divider()
 # ============================================================================
 # Cumulative Returns Chart (All 3 lines)
 # ============================================================================
-st.header("Cumulative Returns Comparison")
-
-# Date range slider
-date_range = st.slider("Date Range", min_value=returns_df['Date'].min().to_pydatetime(),
-                       max_value=returns_df['Date'].max().to_pydatetime(),
-                       value=(returns_df['Date'].min().to_pydatetime(), returns_df['Date'].max().to_pydatetime()))
-plot_df = returns_df[(returns_df['Date'] >= date_range[0]) & (returns_df['Date'] <= date_range[1])]
-
 fig_cumulative = go.Figure()
 
 fig_cumulative.add_trace(go.Scatter(
-    x=plot_df['Date'], y=plot_df['Cumulative_Actual'] * 100,
+    x=returns_df['Date'], y=returns_df['Cumulative_Actual'] * 100,
     name='Actual (All)', line=dict(color='#3498db', width=2),
     hovertemplate='%{x}<br>Actual: %{y:.2f}%<extra></extra>'
 ))
 fig_cumulative.add_trace(go.Scatter(
-    x=plot_df['Date'], y=plot_df['Cumulative_ExcludeSmall'] * 100,
+    x=returns_df['Date'], y=returns_df['Cumulative_ExcludeSmall'] * 100,
     name=f'Excluding {selected_range["label"]}', line=dict(color='#e74c3c', width=2, dash='dash'),
     hovertemplate='%{x}<br>Excl. Current: %{y:.2f}%<extra></extra>'
 ))
 fig_cumulative.add_trace(go.Scatter(
-    x=plot_df['Date'], y=plot_df['Cumulative_SmallOnly'] * 100,
+    x=returns_df['Date'], y=returns_df['Cumulative_SmallOnly'] * 100,
     name=f'{selected_range["label"]} Only', line=dict(color='#2ecc71', width=2, dash='dot'),
     hovertemplate='%{x}<br>Current Only: %{y:.2f}%<extra></extra>'
 ))
 
 fig_cumulative.update_layout(
     title=f'{selected_etf} - Cumulative Returns Comparison',
-    xaxis_title='Date', yaxis_title='Cumulative Return (%)',
+    xaxis_title='', yaxis_title='Cumulative Return (%)',
     hovermode='x unified',
     legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
-    xaxis=dict(hoverformat='%Y-%m-%d')
+    xaxis=dict(
+        hoverformat='%Y-%m-%d',
+        rangeslider=dict(visible=True, thickness=0.1),
+        title=dict(text="Date Range", font=dict(size=11, color='gray'), standoff=0),
+    ),
 )
 
 st.plotly_chart(fig_cumulative, use_container_width=True)
