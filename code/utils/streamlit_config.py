@@ -32,10 +32,10 @@ ANALYSIS_PERIODS = {
         "end": None,    # Use data's max date
         "label": "All"
     },
-    "2021-2023": {
+    "2021-2022": {
         "start": pd.to_datetime('2021-01-01'),
-        "end": pd.to_datetime('2023-12-31'),
-        "label": "2021-2023"
+        "end": pd.to_datetime('2022-12-31'),
+        "label": "2021-2022"
     }
 }
 DEFAULT_PERIOD = "All"
