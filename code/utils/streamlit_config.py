@@ -79,10 +79,13 @@ def get_current_dates():
 
 def render_period_selector():
     st.sidebar.markdown("##### Analysis Period")
-    selected_period = st.sidebar.pills(
+    period_options = list(ANALYSIS_PERIODS.keys())
+    current_idx = period_options.index(st.session_state.analysis_period) if st.session_state.analysis_period in period_options else 0
+    selected_period = st.sidebar.radio(
         "Period",
-        options=list(ANALYSIS_PERIODS.keys()),
-        default=st.session_state.analysis_period,
+        options=period_options,
+        index=current_idx,
+        horizontal=True,
         label_visibility="collapsed"
     )
     if selected_period != st.session_state.analysis_period:
