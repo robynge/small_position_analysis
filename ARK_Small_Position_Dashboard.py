@@ -11,7 +11,8 @@ CODE_DIR = Path(__file__).parent / "code"
 sys.path.insert(0, str(CODE_DIR))
 
 from utils.streamlit_config import (
-    render_sidebar, load_etf_data, init_session_state
+    render_sidebar, load_etf_data, init_session_state,
+    get_current_period, get_current_dates
 )
 
 # Page config
@@ -31,11 +32,16 @@ selected_etf, selected_range = render_sidebar()
 # Main content
 st.title("ARK Small Position Dashboard")
 
+# Display current analysis period
+current_period = get_current_period()
+start_date, end_date = get_current_dates()
+st.markdown(f"**Analysis Period:** {current_period}")
+
 st.divider()
 
 # Load data for overview
 with st.spinner("Loading data..."):
-    df = load_etf_data(selected_etf)
+    df = load_etf_data(selected_etf, start_date, end_date)
 
 if df.empty:
     st.error("Failed to load data. Please check that the data file exists.")

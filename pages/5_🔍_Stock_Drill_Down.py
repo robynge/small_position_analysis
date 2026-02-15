@@ -12,7 +12,8 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "code"))
 from utils.streamlit_config import (
-    render_sidebar, calculate_crossing_analysis, load_etf_data
+    render_sidebar, calculate_crossing_analysis, load_etf_data,
+    get_current_period, get_current_dates
 )
 
 st.set_page_config(page_title="Stock Drill-Down", page_icon="🔍", layout="wide")
@@ -23,11 +24,14 @@ lo = selected_range['min']
 hi = selected_range['max']
 
 st.title("Stock Drill-Down")
-st.markdown(f"**ETF:** {selected_etf} | **Weight Range:** {selected_range['label']} | **Boundaries:** {lo}% / {hi}%")
+
+current_period = get_current_period()
+start_date, end_date = get_current_dates()
+st.markdown(f"**ETF:** {selected_etf} | **Weight Range:** {selected_range['label']} | **Boundaries:** {lo}% / {hi}% | **Period:** {current_period}")
 
 with st.spinner("Loading data..."):
-    crossing_df, returns_df, summary = calculate_crossing_analysis(selected_etf, selected_range)
-    full_df = load_etf_data(selected_etf)
+    crossing_df, returns_df, summary = calculate_crossing_analysis(selected_etf, selected_range, start_date, end_date)
+    full_df = load_etf_data(selected_etf, start_date, end_date)
 
 if full_df.empty:
     st.warning("No data available.")

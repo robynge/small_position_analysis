@@ -11,7 +11,8 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "code"))
 from utils.streamlit_config import (
-    render_sidebar, calculate_crossing_analysis
+    render_sidebar, calculate_crossing_analysis,
+    get_current_period, get_current_dates
 )
 
 st.set_page_config(page_title="Crossing Analysis", page_icon="🎓", layout="wide")
@@ -22,7 +23,10 @@ lo = selected_range['min']
 hi = selected_range['max']
 
 st.title("Crossing Analysis")
-st.markdown(f"**ETF:** {selected_etf} | **Weight Range:** {selected_range['label']} | **Boundaries:** {lo}% / {hi}%")
+
+current_period = get_current_period()
+start_date, end_date = get_current_dates()
+st.markdown(f"**ETF:** {selected_etf} | **Weight Range:** {selected_range['label']} | **Boundaries:** {lo}% / {hi}% | **Period:** {current_period}")
 
 # ============================================================================
 # Crossing Type Definitions
@@ -51,7 +55,7 @@ st.markdown(f"""
 st.divider()
 
 with st.spinner("Analyzing crossings..."):
-    crossing_df, returns_df, summary = calculate_crossing_analysis(selected_etf, selected_range)
+    crossing_df, returns_df, summary = calculate_crossing_analysis(selected_etf, selected_range, start_date, end_date)
 
 if not summary:
     st.warning("No data available for the selected ETF and weight range.")

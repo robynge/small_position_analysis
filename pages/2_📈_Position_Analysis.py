@@ -14,7 +14,8 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent / "code"))
 from utils.streamlit_config import (
     render_sidebar, calculate_position_counts, calculate_market_value,
-    calculate_market_value_by_range, format_currency, WEIGHT_RANGES
+    calculate_market_value_by_range, format_currency, WEIGHT_RANGES,
+    get_current_period, get_current_dates
 )
 
 st.set_page_config(
@@ -27,15 +28,18 @@ st.set_page_config(
 selected_etf, selected_range = render_sidebar()
 
 st.title("📈 Position & Market Value Analysis")
-st.markdown(f"**ETF:** {selected_etf} | **Weight Range:** {selected_range['label']}")
+
+current_period = get_current_period()
+start_date, end_date = get_current_dates()
+st.markdown(f"**ETF:** {selected_etf} | **Weight Range:** {selected_range['label']} | **Period:** {current_period}")
 
 st.divider()
 
 # Load data
 with st.spinner("Loading position data..."):
-    position_counts = calculate_position_counts(selected_etf)
-    market_value = calculate_market_value(selected_etf, selected_range)
-    mv_by_range = calculate_market_value_by_range(selected_etf)
+    position_counts = calculate_position_counts(selected_etf, start_date, end_date)
+    market_value = calculate_market_value(selected_etf, selected_range, start_date, end_date)
+    mv_by_range = calculate_market_value_by_range(selected_etf, start_date, end_date)
 
 if position_counts.empty:
     st.warning("No data available for the selected ETF.")

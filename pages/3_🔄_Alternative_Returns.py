@@ -13,7 +13,8 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "code"))
 from utils.streamlit_config import (
-    render_sidebar, calculate_alternative_returns
+    render_sidebar, calculate_alternative_returns,
+    get_current_period, get_current_dates
 )
 
 st.set_page_config(page_title="Alternative Returns", page_icon="🔄", layout="wide")
@@ -21,7 +22,10 @@ st.set_page_config(page_title="Alternative Returns", page_icon="🔄", layout="w
 selected_etf, selected_range = render_sidebar()
 
 st.title("🔄 Alternative Returns Analysis")
-st.markdown(f"**ETF:** {selected_etf} | **Weight Range:** {selected_range['label']}")
+
+current_period = get_current_period()
+start_date, end_date = get_current_dates()
+st.markdown(f"**ETF:** {selected_etf} | **Weight Range:** {selected_range['label']} | **Period:** {current_period}")
 
 st.markdown("""
 Compare three return metrics:
@@ -33,7 +37,7 @@ Compare three return metrics:
 st.divider()
 
 with st.spinner("Calculating alternative returns..."):
-    returns_df = calculate_alternative_returns(selected_etf, selected_range)
+    returns_df = calculate_alternative_returns(selected_etf, selected_range, start_date, end_date)
 
 if returns_df.empty:
     st.warning("No data available for the selected ETF and weight range.")

@@ -26,6 +26,20 @@ OUTPUT_DIR = PROJECT_ROOT / 'output'
 
 ETFS = ['ARKF', 'ARKG', 'ARKK', 'ARKQ', 'ARKW', 'ARKX']
 
+ANALYSIS_PERIODS = {
+    "All": {
+        "start": None,  # Use data's min date
+        "end": None,    # Use data's max date
+        "label": "All"
+    },
+    "2021-2023": {
+        "start": pd.to_datetime('2021-01-01'),
+        "end": pd.to_datetime('2023-12-31'),
+        "label": "2021-2023"
+    }
+}
+DEFAULT_PERIOD = "All"
+
 WEIGHT_RANGES = [
     {'min': 0, 'max': 1, 'label': '<1%', 'folder': 'under_1pct'},
     {'min': 0, 'max': 2.5, 'label': '<2.5%', 'folder': 'under_2.5pct'},
@@ -45,6 +59,8 @@ def init_session_state():
         st.session_state.selected_etf = 'ARKK'
     if 'selected_range_idx' not in st.session_state:
         st.session_state.selected_range_idx = 0
+    if 'analysis_period' not in st.session_state:
+        st.session_state.analysis_period = DEFAULT_PERIOD
 
 def get_selected_etf():
     return st.session_state.get('selected_etf', 'ARKK')
@@ -53,12 +69,32 @@ def get_selected_range():
     idx = st.session_state.get('selected_range_idx', 0)
     return WEIGHT_RANGES[idx]
 
+def get_current_period():
+    return st.session_state.get('analysis_period', DEFAULT_PERIOD)
+
+def get_current_dates():
+    period_key = get_current_period()
+    period = ANALYSIS_PERIODS[period_key]
+    return (period['start'], period['end'])
+
+def render_period_selector():
+    st.sidebar.markdown("##### Analysis Period")
+    selected_period = st.sidebar.pills(
+        "Period",
+        options=list(ANALYSIS_PERIODS.keys()),
+        default=st.session_state.analysis_period,
+        label_visibility="collapsed"
+    )
+    if selected_period != st.session_state.analysis_period:
+        st.session_state.analysis_period = selected_period
+        st.rerun()
+
 # ============================================================================
 # DATA LOADING FUNCTIONS
 # ============================================================================
 
 @st.cache_data
-def load_etf_data(etf_name: str) -> pd.DataFrame:
+def load_etf_data(etf_name: str, start_date=None, end_date=None) -> pd.DataFrame:
     etf_file = INPUT_DIR / f"{etf_name}_Transformed_Data.xlsx"
     if not etf_file.exists():
         st.error(f"Data file not found: {etf_file}")
@@ -86,6 +122,12 @@ def load_etf_data(etf_name: str) -> pd.DataFrame:
     df['Company_Name'] = df['Bloomberg Name']
     df['Market Value'] = df['MV']
 
+    # Apply date filtering
+    if start_date is not None:
+        df = df[df['Date'] >= start_date]
+    if end_date is not None:
+        df = df[df['Date'] <= end_date]
+
     return df
 
 def filter_by_weight_range(df: pd.DataFrame, weight_range: dict = None) -> pd.DataFrame:
@@ -102,12 +144,12 @@ def filter_by_weight_range(df: pd.DataFrame, weight_range: dict = None) -> pd.Da
 # ============================================================================
 
 @st.cache_data
-def calculate_pnl(etf_name: str, weight_range: dict) -> tuple:
+def calculate_pnl(etf_name: str, weight_range: dict, start_date=None, end_date=None) -> tuple:
     """
     Calculate adjusted P&L with detailed Position_Status tracking
     Matches original CLI version exactly
     """
-    df = load_etf_data(etf_name)
+    df = load_etf_data(etf_name, start_date, end_date)
     if df.empty:
         return pd.DataFrame(), pd.DataFrame()
 
@@ -223,8 +265,8 @@ def calculate_pnl(etf_name: str, weight_range: dict) -> tuple:
 # ============================================================================
 
 @st.cache_data
-def calculate_position_counts(etf_name: str) -> pd.DataFrame:
-    df = load_etf_data(etf_name)
+def calculate_position_counts(etf_name: str, start_date=None, end_date=None) -> pd.DataFrame:
+    df = load_etf_data(etf_name, start_date, end_date)
     if df.empty:
         return pd.DataFrame()
 
@@ -242,8 +284,8 @@ def calculate_position_counts(etf_name: str) -> pd.DataFrame:
     return result_df
 
 @st.cache_data
-def calculate_market_value(etf_name: str, weight_range: dict) -> pd.DataFrame:
-    df = load_etf_data(etf_name)
+def calculate_market_value(etf_name: str, weight_range: dict, start_date=None, end_date=None) -> pd.DataFrame:
+    df = load_etf_data(etf_name, start_date, end_date)
     if df.empty:
         return pd.DataFrame()
 
@@ -264,8 +306,8 @@ def calculate_market_value(etf_name: str, weight_range: dict) -> pd.DataFrame:
     return weekly_mv
 
 @st.cache_data
-def calculate_market_value_by_range(etf_name: str) -> pd.DataFrame:
-    df = load_etf_data(etf_name)
+def calculate_market_value_by_range(etf_name: str, start_date=None, end_date=None) -> pd.DataFrame:
+    df = load_etf_data(etf_name, start_date, end_date)
     if df.empty:
         return pd.DataFrame()
 
@@ -296,12 +338,12 @@ def calculate_market_value_by_range(etf_name: str) -> pd.DataFrame:
 # ============================================================================
 
 @st.cache_data
-def calculate_alternative_returns(etf_name: str, weight_range: dict) -> pd.DataFrame:
+def calculate_alternative_returns(etf_name: str, weight_range: dict, start_date=None, end_date=None) -> pd.DataFrame:
     """
     Calculate returns: Actual, ExcludeSmall, AND SmallOnly
     Matches original CLI version
     """
-    df = load_etf_data(etf_name)
+    df = load_etf_data(etf_name, start_date, end_date)
     if df.empty:
         return pd.DataFrame()
 
@@ -399,7 +441,7 @@ def calculate_alternative_returns(etf_name: str, weight_range: dict) -> pd.DataF
 # ============================================================================
 
 @st.cache_data
-def calculate_crossing_analysis(etf_name: str, weight_range: dict) -> tuple:
+def calculate_crossing_analysis(etf_name: str, weight_range: dict, start_date=None, end_date=None) -> tuple:
     """
     Dual-boundary crossing analysis with three zones and nine categories.
 
@@ -423,7 +465,7 @@ def calculate_crossing_analysis(etf_name: str, weight_range: dict) -> tuple:
 
     Returns: (crossing_df, returns_df, category_summary)
     """
-    df = load_etf_data(etf_name)
+    df = load_etf_data(etf_name, start_date, end_date)
     if df.empty:
         return pd.DataFrame(), pd.DataFrame(), {}
 
@@ -667,6 +709,9 @@ def format_percentage(value):
 def render_sidebar():
     init_session_state()
     st.sidebar.title("ARK Small Position Dashboard")
+
+    # Analysis period selector at top
+    render_period_selector()
 
     etf_idx = ETFS.index(st.session_state.selected_etf) if st.session_state.selected_etf in ETFS else 0
     selected_etf = st.sidebar.selectbox("Select ETF", ETFS, index=etf_idx, key='etf_selector')

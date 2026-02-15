@@ -13,7 +13,8 @@ import sys
 # Add code directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "code"))
 from utils.streamlit_config import (
-    render_sidebar, calculate_pnl, format_currency
+    render_sidebar, calculate_pnl, format_currency,
+    get_current_period, get_current_dates
 )
 
 st.set_page_config(
@@ -26,13 +27,16 @@ st.set_page_config(
 selected_etf, selected_range = render_sidebar()
 
 st.title("📊 P&L Analysis")
-st.markdown(f"**ETF:** {selected_etf} | **Weight Range:** {selected_range['label']}")
+
+current_period = get_current_period()
+start_date, end_date = get_current_dates()
+st.markdown(f"**ETF:** {selected_etf} | **Weight Range:** {selected_range['label']} | **Period:** {current_period}")
 
 st.divider()
 
 # Calculate P&L
 with st.spinner("Calculating P&L..."):
-    daily_pnl, stock_pnl = calculate_pnl(selected_etf, selected_range)
+    daily_pnl, stock_pnl = calculate_pnl(selected_etf, selected_range, start_date, end_date)
 
 if daily_pnl.empty:
     st.warning("No data available for the selected ETF and weight range.")
